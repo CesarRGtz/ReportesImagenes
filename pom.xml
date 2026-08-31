@@ -42,7 +42,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.teosa.app.prototipo.App</mainClass>
+                    <mainClass>com.teosa.app.prototipo.Launcher</mainClass>
                 </configuration>
                 <executions>
                     <execution>

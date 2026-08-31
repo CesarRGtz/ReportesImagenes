@@ -1,0 +1,6 @@
+<?xml version="1.0" ?>
+<jpackage-state version="26.0.2.1" platform="windows">
+  <app-version>1.0.0</app-version>
+  <main-launcher name="Reportes TEOSA">
+    <description>Reportes TEOSA</description>
+  </main-launcher></jpackage-state>
