@@ -26,13 +26,29 @@ foreach ($tool in @("javac.exe", "jar.exe", "jpackage.exe")) {
     }
 }
 
+function Resolve-Dependency {
+    param(
+        [Parameter(Mandatory = $true)][string]$FileName,
+        [Parameter(Mandatory = $true)][string]$MavenPath
+    )
+
+    $localPath = Join-Path $projectRoot $FileName
+    if (Test-Path -LiteralPath $localPath) {
+        return $localPath
+    }
+    if (Test-Path -LiteralPath $MavenPath) {
+        return $MavenPath
+    }
+    throw "No se encontró la dependencia $FileName junto al proyecto ni en la caché de Maven."
+}
+
 $dependencies = @(
-    "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-base\25\javafx-base-25-win.jar",
-    "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-graphics\25\javafx-graphics-25-win.jar",
-    "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-controls\25\javafx-controls-25-win.jar",
-    "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-fxml\25\javafx-fxml-25-win.jar",
-    "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar",
-    "C:\Users\Usuario\.m2\repository\com\google\code\gson\gson\2.14.0\gson-2.14.0.jar"
+    Resolve-Dependency "javafx-base-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-base\25\javafx-base-25-win.jar"
+    Resolve-Dependency "javafx-graphics-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-graphics\25\javafx-graphics-25-win.jar"
+    Resolve-Dependency "javafx-controls-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-controls\25\javafx-controls-25-win.jar"
+    Resolve-Dependency "javafx-fxml-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-fxml\25\javafx-fxml-25-win.jar"
+    Resolve-Dependency "openpdf-1.3.39.jar" "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar"
+    Resolve-Dependency "gson-2.14.0.jar" "C:\Users\Usuario\.m2\repository\com\google\code\gson\gson\2.14.0\gson-2.14.0.jar"
 )
 
 foreach ($dependency in $dependencies) {

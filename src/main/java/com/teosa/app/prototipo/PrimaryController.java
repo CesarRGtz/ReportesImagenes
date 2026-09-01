@@ -50,6 +50,7 @@ import java.util.UUID;
 public class PrimaryController {
 
     private static final String DRAG_PHOTO_PREFIX = "TEOSA_PHOTO:";
+    private static final String DEFAULT_TEMPLATE_NAME = "Formato predeterminado";
     private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @FXML private TextField txtCliente;
@@ -417,6 +418,7 @@ public class PrimaryController {
         txtDatosEquipo.clear(); txtDescripcion.clear();
         categorias.clear();
         for (TextField field : customValueControls.values()) field.clear();
+        aplicarValoresPreestablecidos(activeTemplate);
         applyingData = false;
         actualizarControlesFotos();
         actualizarPreview();
@@ -479,22 +481,31 @@ public class PrimaryController {
         List<TemplateDefinition> templates = new ArrayList<>();
         try { templates.addAll(AppServices.get().listTemplates()); }
         catch (Exception ignored) {}
-        boolean hasDefault = templates.stream().anyMatch(t -> t.getName().equalsIgnoreCase(activeTemplate.getName()));
-        if (!hasDefault) templates.add(activeTemplate);
+        templates.removeIf(template -> template == null || template.getName().isBlank());
+
+        TemplateDefinition defaultTemplate = templates.stream()
+                .filter(template -> isDefaultTemplateName(template.getName()))
+                .findFirst().orElseGet(TemplateDefinition::defaults);
+        templates.remove(defaultTemplate);
+        templates.add(0, defaultTemplate);
+
+        boolean hasActive = templates.stream().anyMatch(template ->
+                template.getName().equalsIgnoreCase(activeTemplate.getName()));
+        if (!hasActive && !activeTemplate.getName().isBlank()) {
+            templates.add(copyTemplate(activeTemplate));
+        }
         applyingData = true;
         cmbPlantillas.setItems(FXCollections.observableArrayList(templates));
         TemplateDefinition selected = templates.stream()
                 .filter(t -> t.getName().equalsIgnoreCase(activeTemplate.getName()))
-                .findFirst().orElse(activeTemplate);
+                .findFirst()
+                .orElseGet(() -> templates.stream()
+                        .filter(t -> isDefaultTemplateName(t.getName()))
+                        .findFirst().orElseGet(TemplateDefinition::defaults));
         if (applyAtStartup) {
-            activeTemplate = JsonSupport.GSON.fromJson(
-                    JsonSupport.GSON.toJson(selected), TemplateDefinition.class);
+            activeTemplate = copyTemplate(selected);
             actualizarEtiquetasYCampos();
-            for (Map.Entry<String, String> entry : activeTemplate.getPresetValues().entrySet()) {
-                if (!entry.getKey().equals("fecha") && !entry.getValue().isBlank()) {
-                    setFieldValue(entry.getKey(), entry.getValue());
-                }
-            }
+            aplicarValoresPreestablecidos(activeTemplate);
             construirPanelPersonalizacion();
         }
         cmbPlantillas.getSelectionModel().select(selected);
@@ -504,15 +515,10 @@ public class PrimaryController {
 
     private void aplicarPlantilla(TemplateDefinition selected) {
         if (applyingData) return;
-        activeTemplate = JsonSupport.GSON.fromJson(
-                JsonSupport.GSON.toJson(selected), TemplateDefinition.class);
+        activeTemplate = copyTemplate(selected);
         applyingData = true;
         actualizarEtiquetasYCampos();
-        for (Map.Entry<String, String> entry : activeTemplate.getPresetValues().entrySet()) {
-            if (!entry.getKey().equals("fecha") && !entry.getValue().isBlank()) {
-                setFieldValue(entry.getKey(), entry.getValue());
-            }
-        }
+        aplicarValoresPreestablecidos(activeTemplate);
         activeTemplate.setLastUsedAt(System.currentTimeMillis());
         construirPanelPersonalizacion();
         applyingData = false;
@@ -538,12 +544,15 @@ public class PrimaryController {
         saveTemplate.setMaxWidth(Double.MAX_VALUE);
         saveTemplate.disableProperty().bind(templateName.textProperty().isEmpty());
         saveTemplate.setOnAction(event -> {
-            activeTemplate.setName(templateName.getText().trim());
-            activeTemplate.setLastUsedAt(System.currentTimeMillis());
-            activeTemplate.setPresetValues(currentPresetValues());
+            TemplateDefinition templateToSave = copyTemplate(activeTemplate);
+            templateToSave.setName(templateName.getText().trim());
+            templateToSave.setLastUsedAt(System.currentTimeMillis());
+            templateToSave.setPresetValues(currentPresetValues());
             try {
-                AppServices.get().saveTemplate(activeTemplate);
+                AppServices.get().saveTemplate(templateToSave);
+                activeTemplate = copyTemplate(templateToSave);
                 cargarPlantillas();
+                construirPanelPersonalizacion();
                 mostrarAlerta(Alert.AlertType.INFORMATION, "Plantilla guardada",
                         "La plantilla '" + activeTemplate.getName() + "' quedó disponible para todos los equipos.");
             } catch (Exception ex) {
@@ -552,7 +561,7 @@ public class PrimaryController {
         });
         Button deleteTemplate = new Button("Eliminar plantilla guardada");
         deleteTemplate.setMaxWidth(Double.MAX_VALUE);
-        deleteTemplate.setDisable(activeTemplate.getName().equalsIgnoreCase("Formato predeterminado"));
+        deleteTemplate.setDisable(isDefaultTemplateName(activeTemplate.getName()));
         deleteTemplate.setStyle("-fx-background-color: #fff1f2; -fx-text-fill: #b91c1c; "
                 + "-fx-border-color: #fca5a5; -fx-border-radius: 4px;");
         deleteTemplate.setOnAction(event -> eliminarPlantillaGuardada());
@@ -734,7 +743,7 @@ public class PrimaryController {
 
     private void eliminarPlantillaGuardada() {
         String templateName = activeTemplate.getName();
-        if (templateName.equalsIgnoreCase("Formato predeterminado")) {
+        if (isDefaultTemplateName(templateName)) {
             mostrarAlerta(Alert.AlertType.WARNING, "Plantilla protegida",
                     "La plantilla predeterminada no se puede eliminar.");
             return;
@@ -882,6 +891,23 @@ public class PrimaryController {
         values.put("descripcion", valorSinNulo(txtDescripcion.getText()));
         customValueControls.forEach((key, control) -> values.put(key, control.getText()));
         return values;
+    }
+
+    private void aplicarValoresPreestablecidos(TemplateDefinition template) {
+        for (Map.Entry<String, String> entry : template.getPresetValues().entrySet()) {
+            if (!entry.getKey().equals("fecha") && !entry.getValue().isBlank()) {
+                setFieldValue(entry.getKey(), entry.getValue());
+            }
+        }
+    }
+
+    private TemplateDefinition copyTemplate(TemplateDefinition template) {
+        return JsonSupport.GSON.fromJson(
+                JsonSupport.GSON.toJson(template), TemplateDefinition.class);
+    }
+
+    private boolean isDefaultTemplateName(String name) {
+        return DEFAULT_TEMPLATE_NAME.equalsIgnoreCase(valorSinNulo(name).trim());
     }
 
     private void setFieldValue(String key, String value) {
