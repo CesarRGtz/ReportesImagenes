@@ -4,7 +4,16 @@ import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ChoiceDialog;
 import javafx.stage.Stage;
+import javafx.stage.Screen;
+import javafx.geometry.Rectangle2D;
+
+import com.teosa.app.prototipo.data.AppConfig;
+import com.teosa.app.prototipo.data.ConfigStore;
+import com.teosa.app.prototipo.network.AppServices;
 
 import java.io.IOException;
 
@@ -17,7 +26,30 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
-        scene = new Scene(loadFXML("primary"), 1200, 700);
+        AppConfig config = ConfigStore.load();
+        if (config.getRole() == null) {
+            ChoiceDialog<String> dialog = new ChoiceDialog<>("Computadora principal",
+                    "Computadora principal", "Computadora secundaria");
+            dialog.setTitle("Configuración inicial");
+            dialog.setHeaderText("¿Qué función tendrá esta computadora?");
+            dialog.setContentText("La principal almacena los reportes; las secundarias se conectan automáticamente.");
+            String choice = dialog.showAndWait().orElse("Computadora secundaria");
+            config.setRole(choice.equals("Computadora principal")
+                    ? AppConfig.Role.PRIMARY : AppConfig.Role.SECONDARY);
+            ConfigStore.save(config);
+        }
+        try {
+            AppServices.get().initialize(config);
+        } catch (IOException ex) {
+            Alert alert = new Alert(Alert.AlertType.ERROR, "No fue posible iniciar los servicios: "
+                    + ex.getMessage(), ButtonType.OK);
+            alert.setHeaderText("Problema de conexión");
+            alert.showAndWait();
+        }
+        Rectangle2D area = Screen.getPrimary().getVisualBounds();
+        double initialWidth = Math.max(640, Math.min(1400, area.getWidth() - 40));
+        double initialHeight = Math.max(500, Math.min(850, area.getHeight() - 40));
+        scene = new Scene(loadFXML("primary"), initialWidth, initialHeight);
         stage.setScene(scene);
         stage.centerOnScreen();
         stage.show();
@@ -34,6 +66,11 @@ public class App extends Application {
 
     public static void main(String[] args) {
         launch();
+    }
+
+    @Override
+    public void stop() {
+        AppServices.get().close();
     }
 
 }

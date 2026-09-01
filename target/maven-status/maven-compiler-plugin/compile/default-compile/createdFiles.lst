@@ -1,7 +1,0 @@
-module-info.class
-com\teosa\app\prototipo\FotoEvidencia.class
-com\teosa\app\prototipo\PdfReportGenerator.class
-com\teosa\app\prototipo\SecondaryController.class
-com\teosa\app\prototipo\App.class
-com\teosa\app\prototipo\PrimaryController.class
-com\teosa\app\prototipo\ReporteServicio.class

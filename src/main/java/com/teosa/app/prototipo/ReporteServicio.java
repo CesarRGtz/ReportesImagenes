@@ -1,5 +1,6 @@
 package com.teosa.app.prototipo;
 
+import com.teosa.app.prototipo.data.CustomFieldValue;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class ReporteServicio {
     private String descripcion;
     private List<FotoEvidencia> fotografias;
     private List<CategoriaFotografica> categoriasFotograficas;
+    private List<CustomFieldValue> customFields;
 
     public ReporteServicio(String cliente, String fecha, String area, String remision,
                            String cotizacion, String factura, String datosEquipo, String descripcion) {
@@ -27,6 +29,7 @@ public class ReporteServicio {
         this.descripcion = descripcion;
         this.fotografias = new ArrayList<>();
         this.categoriasFotograficas = new ArrayList<>();
+        this.customFields = new ArrayList<>();
     }
 
     public void agregarFotografia(String ruta, String etiqueta, double ancho) {
@@ -67,12 +70,27 @@ public class ReporteServicio {
     public String getDescripcion() { return descripcion; }
     public void setDescripcion(String descripcion) { this.descripcion = descripcion; }
 
-    public List<FotoEvidencia> getFotografias() { return fotografias; }
+    public List<FotoEvidencia> getFotografias() {
+        if (fotografias == null) fotografias = new ArrayList<>();
+        return fotografias;
+    }
     public void setFotografias(List<FotoEvidencia> fotografias) { this.fotografias = fotografias; }
 
-    public List<CategoriaFotografica> getCategoriasFotograficas() { return categoriasFotograficas; }
+    public List<CategoriaFotografica> getCategoriasFotograficas() {
+        if (categoriasFotograficas == null) categoriasFotograficas = new ArrayList<>();
+        return categoriasFotograficas;
+    }
     public void setCategoriasFotograficas(List<CategoriaFotografica> categoriasFotograficas) {
         this.categoriasFotograficas = categoriasFotograficas == null
                 ? new ArrayList<>() : categoriasFotograficas;
+    }
+
+    public List<CustomFieldValue> getCustomFields() {
+        if (customFields == null) customFields = new ArrayList<>();
+        return customFields;
+    }
+
+    public void setCustomFields(List<CustomFieldValue> customFields) {
+        this.customFields = customFields == null ? new ArrayList<>() : customFields;
     }
 }

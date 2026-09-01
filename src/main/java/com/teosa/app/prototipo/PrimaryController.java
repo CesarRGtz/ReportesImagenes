@@ -1,7 +1,11 @@
 package com.teosa.app.prototipo;
 
+import com.teosa.app.prototipo.data.*;
+import com.teosa.app.prototipo.network.AppServices;
 import javafx.application.Platform;
 import javafx.animation.AnimationTimer;
+import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,13 +24,28 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 import javafx.stage.FileChooser;
+import javafx.util.StringConverter;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 public class PrimaryController {
 
@@ -43,11 +62,32 @@ public class PrimaryController {
     @FXML private TextArea txtDescripcion;
     @FXML private Button btnGenerarPDF;
     @FXML private Button btnImprimir;
+    @FXML private Button btnGuardarServidor;
+    @FXML private Button btnImportar;
     @FXML private ScrollPane formScrollPane;
     @FXML private VBox photoControls;
     @FXML private VBox panePreview;
+    @FXML private VBox customizationContent;
+    @FXML private VBox customizationDrawer;
+    @FXML private ScrollPane customizationScrollPane;
+    @FXML private VBox customFieldsContainer;
+    @FXML private VBox serviceFieldsContainer;
+    @FXML private ComboBox<TemplateDefinition> cmbPlantillas;
+    @FXML private Label lblConnectionStatus;
+    @FXML private Label lblFecha;
+    @FXML private Label lblArea;
+    @FXML private Label lblRemision;
+    @FXML private Label lblCotizacion;
+    @FXML private Label lblFactura;
 
     private final List<CategoriaFotografica> categorias = new ArrayList<>();
+    private final Map<String, TextField> customValueControls = new LinkedHashMap<>();
+    private final Set<String> expandedCustomizationSections = new HashSet<>();
+    private TemplateDefinition activeTemplate = TemplateDefinition.defaults();
+    private String currentReportId;
+    private int currentVersion;
+    private String lastSavedFingerprint;
+    private boolean applyingData;
     private boolean actualizacionPreviewPendiente;
     private final AnimationTimer actualizadorPreview = new AnimationTimer() {
         private long ultimaActualizacion;
@@ -68,17 +108,46 @@ public class PrimaryController {
         dpFecha.setValue(LocalDate.now());
         actualizadorPreview.start();
 
-        txtCliente.textProperty().addListener((o, a, b) -> actualizarPreview());
-        dpFecha.valueProperty().addListener((o, a, b) -> actualizarPreview());
-        txtArea.textProperty().addListener((o, a, b) -> actualizarPreview());
-        txtRemision.textProperty().addListener((o, a, b) -> actualizarPreview());
-        txtCotizacion.textProperty().addListener((o, a, b) -> actualizarPreview());
-        txtFactura.textProperty().addListener((o, a, b) -> actualizarPreview());
-        txtDatosEquipo.textProperty().addListener((o, a, b) -> actualizarPreview());
-        txtDescripcion.textProperty().addListener((o, a, b) -> actualizarPreview());
+        txtCliente.textProperty().addListener((o, a, b) -> onDataChanged());
+        dpFecha.valueProperty().addListener((o, a, b) -> onDataChanged());
+        txtArea.textProperty().addListener((o, a, b) -> onDataChanged());
+        txtRemision.textProperty().addListener((o, a, b) -> onDataChanged());
+        txtCotizacion.textProperty().addListener((o, a, b) -> onDataChanged());
+        txtFactura.textProperty().addListener((o, a, b) -> onDataChanged());
+        txtDatosEquipo.textProperty().addListener((o, a, b) -> onDataChanged());
+        txtDescripcion.textProperty().addListener((o, a, b) -> onDataChanged());
+
+        cmbPlantillas.setConverter(new StringConverter<>() {
+            @Override public String toString(TemplateDefinition template) {
+                return template == null ? "" : template.getName();
+            }
+            @Override public TemplateDefinition fromString(String value) { return null; }
+        });
+        cmbPlantillas.setOnAction(event -> {
+            TemplateDefinition selected = cmbPlantillas.getValue();
+            if (selected != null && selected != activeTemplate) aplicarPlantilla(selected);
+        });
+        AppServices.get().addStatusListener(status -> Platform.runLater(() -> {
+            lblConnectionStatus.setText(status);
+            lblConnectionStatus.setTextFill(status.startsWith("Sin")
+                    ? Color.web("#b45309") : Color.web("#047857"));
+        }));
 
         actualizarControlesFotos();
+        construirPanelPersonalizacion();
+        cargarPlantillas(true);
         actualizarPreview();
+    }
+
+    private void onDataChanged() {
+        if (!applyingData) actualizarPreview();
+    }
+
+    @FXML
+    private void handleTogglePersonalizacion() {
+        boolean show = !customizationDrawer.isVisible();
+        customizationDrawer.setVisible(show);
+        customizationDrawer.setManaged(show);
     }
 
     @FXML
@@ -110,6 +179,755 @@ public class PrimaryController {
         }
     }
 
+    private ReporteServicio crearReporteActual() {
+        String fecha = dpFecha.getValue() == null ? "" : dpFecha.getValue().format(FORMATO_FECHA);
+        ReporteServicio reporte = new ReporteServicio(
+                txtCliente.getText(), fecha, txtArea.getText(), txtRemision.getText(),
+                txtCotizacion.getText(), txtFactura.getText(), txtDatosEquipo.getText(),
+                txtDescripcion.getText());
+        for (FieldDefinition definition : activeTemplate.orderedFields()) {
+            if (definition.isCustom()) {
+                TextField control = customValueControls.get(definition.getKey());
+                reporte.getCustomFields().add(new CustomFieldValue(
+                        definition.getKey(), control == null ? "" : control.getText()));
+            }
+        }
+        for (CategoriaFotografica categoria : categorias) {
+            CategoriaFotografica copy = new CategoriaFotografica(categoria.getTitulo());
+            for (FotoEvidencia foto : categoria.getFotografias()) {
+                FotoEvidencia photoCopy = new FotoEvidencia(foto.getRuta(), foto.getEtiqueta());
+                photoCopy.setAncho(foto.getAncho());
+                photoCopy.setRutaOriginal(foto.getRutaOriginal());
+                photoCopy.setCropX(foto.getCropX());
+                photoCopy.setCropY(foto.getCropY());
+                photoCopy.setCropWidth(foto.getCropWidth());
+                photoCopy.setCropHeight(foto.getCropHeight());
+                copy.agregarFotografia(photoCopy);
+            }
+            reporte.agregarCategoriaFotografica(copy);
+        }
+        return reporte;
+    }
+
+    private ReportSnapshot crearSnapshotActual() {
+        ReportSnapshot snapshot = new ReportSnapshot();
+        if (currentReportId == null || currentReportId.isBlank()) currentReportId = UUID.randomUUID().toString();
+        snapshot.setReportId(currentReportId);
+        snapshot.setVersion(currentVersion);
+        snapshot.setReport(crearReporteActual());
+        snapshot.setTemplate(JsonSupport.GSON.fromJson(
+                JsonSupport.GSON.toJson(activeTemplate), TemplateDefinition.class));
+        return snapshot;
+    }
+
+    private String fingerprintActual() {
+        return JsonSupport.GSON.toJson(crearReporteActual()) + "\n"
+                + JsonSupport.GSON.toJson(activeTemplate);
+    }
+
+    private String fingerprint(ReportSnapshot snapshot) {
+        return JsonSupport.GSON.toJson(snapshot.getReport()) + "\n"
+                + JsonSupport.GSON.toJson(snapshot.getTemplate());
+    }
+
+    private boolean tieneCambios() {
+        return lastSavedFingerprint == null || !lastSavedFingerprint.equals(fingerprintActual());
+    }
+
+    @FXML
+    private void handleGuardarServidor() {
+        if (txtCliente.getText() == null || txtCliente.getText().isBlank()) {
+            mostrarAlerta(Alert.AlertType.WARNING, "Falta información",
+                    "Captura el cliente antes de guardar el reporte.");
+            return;
+        }
+        btnGuardarServidor.setDisable(true);
+        btnGuardarServidor.setText("Guardando...");
+        ReportSnapshot snapshot = crearSnapshotActual();
+        String savedFingerprint = fingerprint(snapshot);
+        Task<SaveResponse> task = new Task<>() {
+            @Override protected SaveResponse call() throws Exception {
+                return AppServices.get().saveReport(snapshot);
+            }
+        };
+        task.setOnSucceeded(event -> {
+            SaveResponse response = task.getValue();
+            currentReportId = response.getReportId() == null
+                    ? snapshot.getReportId() : response.getReportId();
+            if (response.getVersion() > 0) currentVersion = response.getVersion();
+            lastSavedFingerprint = savedFingerprint;
+            btnGuardarServidor.setDisable(false);
+            btnGuardarServidor.setText("Guardar reporte en el servidor");
+            mostrarAlerta(Alert.AlertType.INFORMATION,
+                    response.isQueued() ? "Guardado pendiente" : "Reporte guardado",
+                    response.getMessage());
+        });
+        task.setOnFailed(event -> {
+            btnGuardarServidor.setDisable(false);
+            btnGuardarServidor.setText("Guardar reporte en el servidor");
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo guardar",
+                    task.getException().getMessage());
+        });
+        Thread.ofVirtual().start(task);
+    }
+
+    private boolean guardarAntesDePdfSiCorresponde() {
+        if (!tieneCambios()) return true;
+        Alert question = new Alert(Alert.AlertType.CONFIRMATION);
+        question.setTitle("Cambios sin guardar");
+        question.setHeaderText("Este reporte tiene cambios sin guardar");
+        question.setContentText("¿Deseas guardar una nueva versión antes de generar el PDF?");
+        ButtonType save = new ButtonType("Guardar versión");
+        ButtonType continueWithoutSaving = new ButtonType("Generar sin guardar");
+        question.getButtonTypes().setAll(save, continueWithoutSaving, ButtonType.CANCEL);
+        Optional<ButtonType> result = question.showAndWait();
+        if (result.isEmpty() || result.get() == ButtonType.CANCEL) return false;
+        if (result.get() == save) {
+            try {
+                ReportSnapshot snapshot = crearSnapshotActual();
+                SaveResponse response = AppServices.get().saveReport(snapshot);
+                currentReportId = response.getReportId() == null ? snapshot.getReportId() : response.getReportId();
+                if (response.getVersion() > 0) currentVersion = response.getVersion();
+                lastSavedFingerprint = fingerprintActual();
+            } catch (Exception ex) {
+                mostrarAlerta(Alert.AlertType.ERROR, "No se pudo guardar", ex.getMessage());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @FXML
+    private void handleImportarReporte() {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Importar reporte e historial");
+        dialog.setHeaderText("Selecciona un reporte y una versión");
+        dialog.initOwner(btnImportar.getScene().getWindow());
+        ButtonType open = new ButtonType("Abrir versión", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(open, ButtonType.CANCEL);
+
+        TextField search = new TextField();
+        search.setPromptText("Buscar por cliente, fecha, área, remisión o autor");
+        Button searchButton = new Button("Buscar");
+        HBox searchRow = new HBox(8, search, searchButton);
+        HBox.setHgrow(search, Priority.ALWAYS);
+
+        ListView<ReportSummary> reports = new ListView<>();
+        ListView<VersionSummary> versions = new ListView<>();
+        reports.setPrefWidth(460);
+        versions.setPrefWidth(280);
+        reports.setCellFactory(view -> new ListCell<>() {
+            @Override protected void updateItem(ReportSummary item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getClient() + " · " + item.getDate()
+                        + "\n" + valorSinNulo(item.getArea()) + " · " + item.getVersionCount()
+                        + " versión(es) · " + valorSinNulo(item.getLastAuthor()));
+            }
+        });
+        versions.setCellFactory(view -> new ListCell<>() {
+            @Override protected void updateItem(VersionSummary item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : "Versión " + item.getVersion() + " · "
+                        + formatTimestamp(item.getSavedAt()) + "\n"
+                        + valorSinNulo(item.getAuthor()) + " @ " + valorSinNulo(item.getComputer()));
+            }
+        });
+
+        Button deleteVersion = new Button("Eliminar versión");
+        Button deleteReport = new Button("Eliminar reporte completo");
+        deleteVersion.setStyle("-fx-text-fill: #b91c1c;");
+        deleteReport.setStyle("-fx-text-fill: #b91c1c;");
+        VBox right = new VBox(8, new Label("Versiones"), versions,
+                new HBox(8, deleteVersion, deleteReport));
+        VBox.setVgrow(versions, Priority.ALWAYS);
+        HBox lists = new HBox(12, reports, right);
+        VBox content = new VBox(10, searchRow, new Label("Reportes guardados"), lists);
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().setPrefSize(820, 560);
+
+        Runnable loadReports = () -> {
+            try {
+                reports.setItems(FXCollections.observableArrayList(
+                        AppServices.get().listReports(search.getText())));
+                versions.getItems().clear();
+            } catch (Exception ex) {
+                mostrarAlerta(Alert.AlertType.ERROR, "Servidor no disponible", ex.getMessage());
+            }
+        };
+        searchButton.setOnAction(event -> loadReports.run());
+        search.setOnAction(event -> loadReports.run());
+        reports.getSelectionModel().selectedItemProperty().addListener((obs, old, selected) -> {
+            if (selected == null) return;
+            try {
+                versions.setItems(FXCollections.observableArrayList(
+                        AppServices.get().listVersions(selected.getReportId())));
+                if (!versions.getItems().isEmpty()) versions.getSelectionModel().selectFirst();
+            } catch (Exception ex) {
+                mostrarAlerta(Alert.AlertType.ERROR, "No se pudo cargar el historial", ex.getMessage());
+            }
+        });
+        deleteVersion.setOnAction(event -> {
+            ReportSummary report = reports.getSelectionModel().getSelectedItem();
+            VersionSummary version = versions.getSelectionModel().getSelectedItem();
+            if (report == null || version == null || !confirmar("Eliminar versión",
+                    "¿Eliminar definitivamente la versión " + version.getVersion() + "?")) return;
+            try {
+                AppServices.get().deleteVersion(report.getReportId(), version.getVersion());
+                loadReports.run();
+            } catch (Exception ex) { mostrarAlerta(Alert.AlertType.ERROR, "No se pudo eliminar", ex.getMessage()); }
+        });
+        deleteReport.setOnAction(event -> {
+            ReportSummary report = reports.getSelectionModel().getSelectedItem();
+            if (report == null || !confirmar("Eliminar reporte",
+                    "¿Eliminar el reporte y todas sus versiones?")) return;
+            try {
+                AppServices.get().deleteReport(report.getReportId());
+                loadReports.run();
+            } catch (Exception ex) { mostrarAlerta(Alert.AlertType.ERROR, "No se pudo eliminar", ex.getMessage()); }
+        });
+
+        loadReports.run();
+        Optional<ButtonType> result = dialog.showAndWait();
+        if (result.isEmpty() || result.get() != open) return;
+        ReportSummary report = reports.getSelectionModel().getSelectedItem();
+        VersionSummary version = versions.getSelectionModel().getSelectedItem();
+        if (report == null || version == null) {
+            mostrarAlerta(Alert.AlertType.WARNING, "Selecciona una versión",
+                    "Selecciona primero un reporte y una versión de su historial.");
+            return;
+        }
+        try {
+            aplicarSnapshot(AppServices.get().loadReport(report.getReportId(), version.getVersion()));
+        } catch (Exception ex) {
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo importar", ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleNuevoReporte() {
+        if (formularioTieneContenido() && tieneCambios()
+                && !confirmar("Nuevo reporte", "Hay cambios sin guardar. ¿Deseas descartarlos?")) return;
+        applyingData = true;
+        currentReportId = null;
+        currentVersion = 0;
+        lastSavedFingerprint = null;
+        txtCliente.clear();
+        dpFecha.setValue(LocalDate.now());
+        txtArea.clear(); txtRemision.clear(); txtCotizacion.clear(); txtFactura.clear();
+        txtDatosEquipo.clear(); txtDescripcion.clear();
+        categorias.clear();
+        for (TextField field : customValueControls.values()) field.clear();
+        applyingData = false;
+        actualizarControlesFotos();
+        actualizarPreview();
+    }
+
+    private void aplicarSnapshot(ReportSnapshot snapshot) {
+        applyingData = true;
+        currentReportId = snapshot.getReportId();
+        currentVersion = snapshot.getVersion();
+        ReporteServicio report = snapshot.getReport();
+        activeTemplate = snapshot.getTemplate() == null ? TemplateDefinition.defaults() : snapshot.getTemplate();
+        txtCliente.setText(valorSinNulo(report.getCliente()));
+        try { dpFecha.setValue(LocalDate.parse(report.getFecha(), FORMATO_FECHA)); }
+        catch (Exception ex) { dpFecha.setValue(LocalDate.now()); }
+        txtArea.setText(valorSinNulo(report.getArea()));
+        txtRemision.setText(valorSinNulo(report.getRemision()));
+        txtCotizacion.setText(valorSinNulo(report.getCotizacion()));
+        txtFactura.setText(valorSinNulo(report.getFactura()));
+        txtDatosEquipo.setText(valorSinNulo(report.getDatosEquipo()));
+        txtDescripcion.setText(valorSinNulo(report.getDescripcion()));
+        categorias.clear();
+        categorias.addAll(report.getCategoriasFotograficas());
+        actualizarEtiquetasYCampos();
+        for (CustomFieldValue value : report.getCustomFields()) {
+            TextField field = customValueControls.get(value.getKey());
+            if (field != null) field.setText(value.getValue());
+        }
+        construirPanelPersonalizacion();
+        applyingData = false;
+        cargarPlantillas();
+        actualizarControlesFotos();
+        actualizarPreview();
+        lastSavedFingerprint = fingerprintActual();
+    }
+
+    private boolean formularioTieneContenido() {
+        return !valorSinNulo(txtCliente.getText()).isBlank()
+                || !valorSinNulo(txtDatosEquipo.getText()).isBlank()
+                || !valorSinNulo(txtDescripcion.getText()).isBlank() || !categorias.isEmpty();
+    }
+
+    private boolean confirmar(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message, ButtonType.YES, ButtonType.NO);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        return alert.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
+    }
+
+    private String formatTimestamp(long value) {
+        if (value <= 0) return "Sin fecha";
+        return DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")
+                .withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(value));
+    }
+
+    private void cargarPlantillas() {
+        cargarPlantillas(false);
+    }
+
+    private void cargarPlantillas(boolean applyAtStartup) {
+        List<TemplateDefinition> templates = new ArrayList<>();
+        try { templates.addAll(AppServices.get().listTemplates()); }
+        catch (Exception ignored) {}
+        boolean hasDefault = templates.stream().anyMatch(t -> t.getName().equalsIgnoreCase(activeTemplate.getName()));
+        if (!hasDefault) templates.add(activeTemplate);
+        applyingData = true;
+        cmbPlantillas.setItems(FXCollections.observableArrayList(templates));
+        TemplateDefinition selected = templates.stream()
+                .filter(t -> t.getName().equalsIgnoreCase(activeTemplate.getName()))
+                .findFirst().orElse(activeTemplate);
+        if (applyAtStartup) {
+            activeTemplate = JsonSupport.GSON.fromJson(
+                    JsonSupport.GSON.toJson(selected), TemplateDefinition.class);
+            actualizarEtiquetasYCampos();
+            for (Map.Entry<String, String> entry : activeTemplate.getPresetValues().entrySet()) {
+                if (!entry.getKey().equals("fecha") && !entry.getValue().isBlank()) {
+                    setFieldValue(entry.getKey(), entry.getValue());
+                }
+            }
+            construirPanelPersonalizacion();
+        }
+        cmbPlantillas.getSelectionModel().select(selected);
+        applyingData = false;
+        if (applyAtStartup) actualizarPreview();
+    }
+
+    private void aplicarPlantilla(TemplateDefinition selected) {
+        if (applyingData) return;
+        activeTemplate = JsonSupport.GSON.fromJson(
+                JsonSupport.GSON.toJson(selected), TemplateDefinition.class);
+        applyingData = true;
+        actualizarEtiquetasYCampos();
+        for (Map.Entry<String, String> entry : activeTemplate.getPresetValues().entrySet()) {
+            if (!entry.getKey().equals("fecha") && !entry.getValue().isBlank()) {
+                setFieldValue(entry.getKey(), entry.getValue());
+            }
+        }
+        activeTemplate.setLastUsedAt(System.currentTimeMillis());
+        construirPanelPersonalizacion();
+        applyingData = false;
+        actualizarPreview();
+        TemplateDefinition usedTemplate = JsonSupport.GSON.fromJson(
+                JsonSupport.GSON.toJson(activeTemplate), TemplateDefinition.class);
+        Thread.ofVirtual().start(() -> {
+            try { AppServices.get().saveTemplate(usedTemplate); }
+            catch (Exception ignored) {}
+        });
+    }
+
+    private void construirPanelPersonalizacion() {
+        if (customizationContent == null) return;
+        double scroll = customizationScrollPane == null ? 0 : customizationScrollPane.getVvalue();
+        customizationContent.getChildren().clear();
+
+        Label templateTitle = new Label("Guardar configuración como plantilla");
+        templateTitle.setFont(Font.font("System", FontWeight.BOLD, 11));
+        TextField templateName = new TextField(activeTemplate.getName());
+        templateName.setPromptText("Nombre de la plantilla");
+        Button saveTemplate = new Button("Guardar plantilla");
+        saveTemplate.setMaxWidth(Double.MAX_VALUE);
+        saveTemplate.disableProperty().bind(templateName.textProperty().isEmpty());
+        saveTemplate.setOnAction(event -> {
+            activeTemplate.setName(templateName.getText().trim());
+            activeTemplate.setLastUsedAt(System.currentTimeMillis());
+            activeTemplate.setPresetValues(currentPresetValues());
+            try {
+                AppServices.get().saveTemplate(activeTemplate);
+                cargarPlantillas();
+                mostrarAlerta(Alert.AlertType.INFORMATION, "Plantilla guardada",
+                        "La plantilla '" + activeTemplate.getName() + "' quedó disponible para todos los equipos.");
+            } catch (Exception ex) {
+                mostrarAlerta(Alert.AlertType.ERROR, "No se pudo guardar la plantilla", ex.getMessage());
+            }
+        });
+        Button deleteTemplate = new Button("Eliminar plantilla guardada");
+        deleteTemplate.setMaxWidth(Double.MAX_VALUE);
+        deleteTemplate.setDisable(activeTemplate.getName().equalsIgnoreCase("Formato predeterminado"));
+        deleteTemplate.setStyle("-fx-background-color: #fff1f2; -fx-text-fill: #b91c1c; "
+                + "-fx-border-color: #fca5a5; -fx-border-radius: 4px;");
+        deleteTemplate.setOnAction(event -> eliminarPlantillaGuardada());
+
+        VBox fieldsEditor = new VBox(7);
+        for (FieldDefinition definition : activeTemplate.orderedFields()) {
+            TextField label = new TextField(definition.getLabel());
+            label.setPromptText("Nombre del campo");
+            label.textProperty().addListener((obs, old, value) -> {
+                definition.setLabel(value);
+                actualizarEtiquetasYCampos();
+                actualizarPreview();
+            });
+            ColorPicker background = colorPicker(definition.getBackgroundColor());
+            background.setOnAction(event -> {
+                definition.setBackgroundColor(toHex(background.getValue()));
+                actualizarEtiquetasYCampos();
+                actualizarPreview();
+            });
+            CheckBox visible = new CheckBox("Visible");
+            visible.setSelected(definition.isVisible());
+            visible.selectedProperty().addListener((obs, old, value) -> {
+                definition.setVisible(value);
+                actualizarEtiquetasYCampos();
+                actualizarPreview();
+            });
+            Button up = new Button("↑");
+            Button down = new Button("↓");
+            up.setOnAction(event -> moverCampo(definition, -1));
+            down.setOnAction(event -> moverCampo(definition, 1));
+            HBox actions = new HBox(5, background, visible, up, down);
+            if (definition.isCustom()) {
+                Button remove = new Button("Eliminar");
+                remove.setStyle("-fx-text-fill: #b91c1c;");
+                remove.setOnAction(event -> {
+                    activeTemplate.getFields().remove(definition.getKey());
+                    customValueControls.remove(definition.getKey());
+                    normalizarOrden();
+                    construirPanelPersonalizacion();
+                    actualizarEtiquetasYCampos();
+                    actualizarPreview();
+                });
+                actions.getChildren().add(remove);
+            }
+            VBox card = new VBox(5, label, actions);
+            card.setPadding(new Insets(6));
+            card.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;");
+            fieldsEditor.getChildren().add(card);
+        }
+        Button addField = new Button("Agregar campo personalizado");
+        addField.setMaxWidth(Double.MAX_VALUE);
+        addField.setOnAction(event -> {
+            String key = "custom-" + UUID.randomUUID();
+            activeTemplate.getFields().put(key, new FieldDefinition(
+                    key, "Nuevo campo:", activeTemplate.getFields().size(), true));
+            construirPanelPersonalizacion();
+            actualizarEtiquetasYCampos();
+            actualizarPreview();
+        });
+        fieldsEditor.getChildren().add(addField);
+
+        VBox sectionsEditor = new VBox(7);
+        TextField section1 = new TextField(activeTemplate.getSection1Title());
+        TextField section2 = new TextField(activeTemplate.getSection2Title());
+        TextField section3 = new TextField(activeTemplate.getSection3Title());
+        section1.setPromptText("Título del punto 1");
+        section2.setPromptText("Título del punto 2");
+        section3.setPromptText("Título del punto 3");
+        ColorPicker sectionColor = colorPicker(activeTemplate.getSectionBackgroundColor());
+        section1.textProperty().addListener((o,a,b) -> { activeTemplate.setSection1Title(b); actualizarPreview(); });
+        section2.textProperty().addListener((o,a,b) -> { activeTemplate.setSection2Title(b); actualizarPreview(); });
+        section3.textProperty().addListener((o,a,b) -> { activeTemplate.setSection3Title(b); actualizarPreview(); });
+        sectionColor.setOnAction(event -> { activeTemplate.setSectionBackgroundColor(toHex(sectionColor.getValue())); actualizarPreview(); });
+        sectionsEditor.getChildren().addAll(section1, section2, section3,
+                new HBox(8, new Label("Color de encabezados:"), sectionColor));
+
+        VBox headerEditor = new VBox(8);
+        Label logoName = new Label("Imagen: " + activeTemplate.getHeaderImageFileName());
+        logoName.setWrapText(true);
+        Button chooseLogo = new Button("Elegir otra imagen");
+        chooseLogo.setOnAction(event -> {
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("Seleccionar imagen del encabezado");
+            chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter(
+                    "Imágenes", "*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp"));
+            File selected = chooser.showOpenDialog(customizationDrawer.getScene().getWindow());
+            if (selected == null) return;
+            try {
+                byte[] imageBytes = Files.readAllBytes(selected.toPath());
+                if (imageBytes.length > 10 * 1024 * 1024) {
+                    throw new IllegalArgumentException("La imagen debe pesar menos de 10 MB");
+                }
+                Image selectedImage = new Image(new ByteArrayInputStream(imageBytes));
+                if (selectedImage.isError() || selectedImage.getHeight() <= 0) {
+                    throw new IllegalArgumentException("La imagen seleccionada no es válida");
+                }
+                activeTemplate.setHeaderImageBase64(Base64.getEncoder().encodeToString(imageBytes));
+                activeTemplate.setHeaderImageFileName(selected.getName());
+                activeTemplate.setHeaderImageAspectRatio(
+                        selectedImage.getWidth() / selectedImage.getHeight());
+                logoName.setText("Imagen: " + selected.getName());
+                actualizarPreview();
+            } catch (Exception ex) {
+                mostrarAlerta(Alert.AlertType.ERROR, "No se pudo cargar la imagen", ex.getMessage());
+            }
+        });
+        Button resetLogo = new Button("Usar logo TEOSA");
+        resetLogo.setOnAction(event -> {
+            activeTemplate.setHeaderImageBase64("");
+            activeTemplate.setHeaderImageFileName("Imagen12.jpg");
+            activeTemplate.setHeaderImageAspectRatio(135.0 / 87.0);
+            logoName.setText("Imagen: Imagen12.jpg");
+            actualizarPreview();
+        });
+        Spinner<Double> logoWidth = new Spinner<>(50.0, 260.0,
+                activeTemplate.getHeaderImageWidth(), 5.0);
+        Spinner<Double> headerGap = new Spinner<>(0.0, 100.0,
+                activeTemplate.getHeaderGap(), 2.0);
+        logoWidth.valueProperty().addListener((o,a,b) -> {
+            activeTemplate.setHeaderImageWidth(b); actualizarPreview();
+        });
+        headerGap.valueProperty().addListener((o,a,b) -> {
+            activeTemplate.setHeaderGap(b); actualizarPreview();
+        });
+        ComboBox<String> headerLayout = new ComboBox<>(FXCollections.observableArrayList(
+                "SIDE_BY_SIDE", "STACKED"));
+        headerLayout.setValue(activeTemplate.getHeaderLayout());
+        headerLayout.setConverter(new StringConverter<>() {
+            @Override public String toString(String value) {
+                return "STACKED".equals(value) ? "Logo arriba, centrado" : "Logo y texto juntos, centrados";
+            }
+            @Override public String fromString(String value) { return value; }
+        });
+        headerLayout.setMaxWidth(Double.MAX_VALUE);
+        headerLayout.setOnAction(event -> {
+            activeTemplate.setHeaderLayout(headerLayout.getValue()); actualizarPreview();
+        });
+        ComboBox<String> headerAlignment = alignmentCombo(activeTemplate.getHeaderTextAlignment());
+        headerAlignment.setOnAction(event -> {
+            activeTemplate.setHeaderTextAlignment(headerAlignment.getValue()); actualizarPreview();
+        });
+        headerEditor.getChildren().addAll(logoName, new HBox(8, chooseLogo, resetLogo),
+                new Label("Tamaño del logo:"), logoWidth,
+                new Label("Espacio entre imagen y texto:"), headerGap,
+                new Label("Distribución:"), headerLayout,
+                new Label("Alineación del texto:"), headerAlignment);
+        for (HeaderLine line : activeTemplate.getHeaderLines()) headerEditor.getChildren().add(headerLineEditor(line));
+        Button addHeaderLine = new Button("Agregar línea al encabezado");
+        addHeaderLine.setOnAction(event -> {
+            activeTemplate.getHeaderLines().add(new HeaderLine("Nueva línea", 12, false, false, "#5b7699"));
+            construirPanelPersonalizacion();
+            actualizarPreview();
+        });
+        headerEditor.getChildren().add(addHeaderLine);
+
+        VBox commentEditor = textStyleEditor(activeTemplate.getPhotoCommentStyle(), this::actualizarPreview);
+
+        VBox categoryEditor = textStyleEditor(activeTemplate.getCategoryTitleStyle(), this::actualizarPreview);
+        ComboBox<String> categoryAlignment = alignmentCombo(
+                activeTemplate.getCategoryTitleAlignment());
+        categoryAlignment.setOnAction(event -> {
+            activeTemplate.setCategoryTitleAlignment(categoryAlignment.getValue());
+            actualizarPreview();
+        });
+        categoryEditor.getChildren().addAll(new Label("Alineación:"), categoryAlignment);
+
+        customizationContent.getChildren().addAll(templateTitle, templateName, saveTemplate,
+                deleteTemplate,
+                collapsed("Encabezado", headerEditor),
+                collapsed("Campos del formulario", fieldsEditor),
+                collapsed("Títulos y colores de secciones", sectionsEditor),
+                collapsed("Títulos de categorías", categoryEditor),
+                collapsed("Comentarios de imágenes", commentEditor));
+        actualizarEtiquetasYCampos();
+        if (customizationScrollPane != null) {
+            Platform.runLater(() -> customizationScrollPane.setVvalue(scroll));
+        }
+    }
+
+    private void eliminarPlantillaGuardada() {
+        String templateName = activeTemplate.getName();
+        if (templateName.equalsIgnoreCase("Formato predeterminado")) {
+            mostrarAlerta(Alert.AlertType.WARNING, "Plantilla protegida",
+                    "La plantilla predeterminada no se puede eliminar.");
+            return;
+        }
+        Alert first = new Alert(Alert.AlertType.CONFIRMATION);
+        first.setTitle("Eliminar plantilla");
+        first.setHeaderText("¿Deseas eliminar la plantilla '" + templateName + "'?");
+        first.setContentText("La plantilla dejará de aparecer en la lista de todas las computadoras.");
+        first.getButtonTypes().setAll(ButtonType.YES, ButtonType.CANCEL);
+        if (first.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.YES) return;
+
+        Alert second = new Alert(Alert.AlertType.WARNING);
+        second.setTitle("Confirmación final");
+        second.setHeaderText("La plantilla guardada se eliminará definitivamente");
+        second.setContentText("Los reportes y versiones ya guardados no se eliminarán. "
+                + "¿Confirmas que deseas borrar esta plantilla?");
+        ButtonType confirmDelete = new ButtonType("Sí, eliminar", ButtonBar.ButtonData.OK_DONE);
+        second.getButtonTypes().setAll(confirmDelete, ButtonType.CANCEL);
+        if (second.showAndWait().orElse(ButtonType.CANCEL) != confirmDelete) return;
+
+        try {
+            AppServices.get().deleteTemplate(templateName);
+            activeTemplate = TemplateDefinition.defaults();
+            customValueControls.clear();
+            construirPanelPersonalizacion();
+            cargarPlantillas();
+            actualizarEtiquetasYCampos();
+            actualizarPreview();
+            mostrarAlerta(Alert.AlertType.INFORMATION, "Plantilla eliminada",
+                    "La plantilla '" + templateName + "' fue eliminada. El reporte actual conserva "
+                            + "sus datos principales y fotografías con el formato predeterminado.");
+        } catch (Exception ex) {
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo eliminar la plantilla", ex.getMessage());
+        }
+    }
+
+    private TitledPane collapsed(String title, Node content) {
+        TitledPane pane = new TitledPane(title, content);
+        pane.setExpanded(expandedCustomizationSections.contains(title));
+        pane.expandedProperty().addListener((obs, old, expanded) -> {
+            if (expanded) expandedCustomizationSections.add(title);
+            else expandedCustomizationSections.remove(title);
+        });
+        pane.setAnimated(false);
+        return pane;
+    }
+
+    private VBox headerLineEditor(HeaderLine line) {
+        TextField text = new TextField(line.getText());
+        text.setPromptText("Texto; usa {empresa} para insertar el cliente");
+        text.textProperty().addListener((o,a,b) -> { line.setText(b); actualizarPreview(); });
+        VBox styles = textStyleEditor(line.getStyle(), this::actualizarPreview);
+        Button remove = new Button("Eliminar línea");
+        remove.setStyle("-fx-text-fill: #b91c1c;");
+        remove.setOnAction(event -> {
+            activeTemplate.getHeaderLines().remove(line);
+            construirPanelPersonalizacion();
+            actualizarPreview();
+        });
+        VBox result = new VBox(5, text, styles, remove);
+        result.setPadding(new Insets(6));
+        result.setStyle("-fx-border-color: #e2e8f0;");
+        return result;
+    }
+
+    private VBox textStyleEditor(TextStyle style, Runnable changed) {
+        ComboBox<String> font = new ComboBox<>(FXCollections.observableArrayList(
+                "Arial", "Calibri", "Segoe UI", "Times New Roman", "Verdana", "Tahoma", "Courier New"));
+        font.setValue(style.getFontFamily());
+        font.setPrefWidth(150);
+        Spinner<Double> size = new Spinner<>(7.0, 36.0, style.getFontSize(), 1.0);
+        size.setPrefWidth(85);
+        ColorPicker color = colorPicker(style.getColor());
+        CheckBox bold = new CheckBox("Negrita"); bold.setSelected(style.isBold());
+        CheckBox italic = new CheckBox("Cursiva"); italic.setSelected(style.isItalic());
+        font.setOnAction(e -> { style.setFontFamily(font.getValue()); changed.run(); });
+        size.valueProperty().addListener((o,a,b) -> { style.setFontSize(b); changed.run(); });
+        color.setOnAction(e -> { style.setColor(toHex(color.getValue())); changed.run(); });
+        bold.selectedProperty().addListener((o,a,b) -> { style.setBold(b); changed.run(); });
+        italic.selectedProperty().addListener((o,a,b) -> { style.setItalic(b); changed.run(); });
+        return new VBox(5, new HBox(6, font, size, color), new HBox(10, bold, italic));
+    }
+
+    private ComboBox<String> alignmentCombo(String current) {
+        ComboBox<String> alignment = new ComboBox<>(FXCollections.observableArrayList(
+                "LEFT", "CENTER", "JUSTIFY"));
+        alignment.setValue(current == null ? "CENTER" : current);
+        alignment.setConverter(new StringConverter<>() {
+            @Override public String toString(String value) {
+                return switch (value == null ? "CENTER" : value) {
+                    case "LEFT" -> "Izquierda";
+                    case "JUSTIFY" -> "Justificado";
+                    default -> "Centrado";
+                };
+            }
+            @Override public String fromString(String value) { return value; }
+        });
+        alignment.setMaxWidth(Double.MAX_VALUE);
+        return alignment;
+    }
+
+    private void actualizarEtiquetasYCampos() {
+        if (serviceFieldsContainer == null) return;
+        double scroll = formScrollPane == null ? 0 : formScrollPane.getVvalue();
+        Map<String, Label> labels = Map.of(
+                "fecha", lblFecha, "area", lblArea, "remision", lblRemision,
+                "cotizacion", lblCotizacion, "factura", lblFactura);
+        Map<String, Node> controls = Map.of(
+                "fecha", dpFecha, "area", txtArea, "remision", txtRemision,
+                "cotizacion", txtCotizacion, "factura", txtFactura);
+        serviceFieldsContainer.getChildren().clear();
+        for (FieldDefinition definition : activeTemplate.orderedFields()) {
+            if (!definition.isVisible()) continue;
+            if (definition.isCustom()) {
+                Label label = new Label(definition.getLabel());
+                label.setTextFill(Color.web("#4a5568"));
+                TextField value = customValueControls.computeIfAbsent(definition.getKey(), key -> {
+                    TextField field = new TextField();
+                    field.textProperty().addListener((o,a,b) -> onDataChanged());
+                    return field;
+                });
+                serviceFieldsContainer.getChildren().addAll(label, value);
+            } else {
+                Label label = labels.get(definition.getKey());
+                Node control = controls.get(definition.getKey());
+                if (label != null && control != null) {
+                    label.setText(definition.getLabel());
+                    serviceFieldsContainer.getChildren().addAll(label, control);
+                }
+            }
+        }
+        if (formScrollPane != null) {
+            Platform.runLater(() -> formScrollPane.setVvalue(scroll));
+        }
+    }
+
+    private Map<String, String> currentPresetValues() {
+        Map<String, String> values = new LinkedHashMap<>();
+        values.put("cliente", valorSinNulo(txtCliente.getText()));
+        values.put("area", valorSinNulo(txtArea.getText()));
+        values.put("remision", valorSinNulo(txtRemision.getText()));
+        values.put("cotizacion", valorSinNulo(txtCotizacion.getText()));
+        values.put("factura", valorSinNulo(txtFactura.getText()));
+        values.put("datosEquipo", valorSinNulo(txtDatosEquipo.getText()));
+        values.put("descripcion", valorSinNulo(txtDescripcion.getText()));
+        customValueControls.forEach((key, control) -> values.put(key, control.getText()));
+        return values;
+    }
+
+    private void setFieldValue(String key, String value) {
+        switch (key) {
+            case "cliente" -> txtCliente.setText(value);
+            case "fecha" -> { try { dpFecha.setValue(LocalDate.parse(value, FORMATO_FECHA)); } catch (Exception ignored) {} }
+            case "area" -> txtArea.setText(value);
+            case "remision" -> txtRemision.setText(value);
+            case "cotizacion" -> txtCotizacion.setText(value);
+            case "factura" -> txtFactura.setText(value);
+            case "datosEquipo" -> txtDatosEquipo.setText(value);
+            case "descripcion" -> txtDescripcion.setText(value);
+            default -> { TextField field = customValueControls.get(key); if (field != null) field.setText(value); }
+        }
+    }
+
+    private void normalizarOrden() {
+        List<FieldDefinition> ordered = activeTemplate.orderedFields();
+        for (int index = 0; index < ordered.size(); index++) ordered.get(index).setOrder(index);
+    }
+
+    private void moverCampo(FieldDefinition definition, int direction) {
+        List<FieldDefinition> ordered = activeTemplate.orderedFields();
+        int current = ordered.indexOf(definition);
+        int target = Math.max(0, Math.min(ordered.size() - 1, current + direction));
+        if (current == target) return;
+        FieldDefinition other = ordered.get(target);
+        int oldOrder = definition.getOrder();
+        definition.setOrder(other.getOrder());
+        other.setOrder(oldOrder);
+        normalizarOrden();
+        construirPanelPersonalizacion();
+        actualizarEtiquetasYCampos();
+        actualizarPreview();
+    }
+
+    private ColorPicker colorPicker(String color) {
+        try { return new ColorPicker(Color.web(color)); }
+        catch (Exception ex) { return new ColorPicker(Color.GRAY); }
+    }
+
+    private String toHex(Color color) {
+        return String.format("#%02x%02x%02x", Math.round(color.getRed() * 255),
+                Math.round(color.getGreen() * 255), Math.round(color.getBlue() * 255));
+    }
+
     @FXML
     private void handleClicAccion() {
         String cliente = txtCliente.getText();
@@ -120,6 +938,7 @@ public class PrimaryController {
                     "Debes capturar el nombre del cliente/empresa.");
             return;
         }
+        if (!guardarAntesDePdfSiCorresponde()) return;
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Guardar reporte PDF");
@@ -130,23 +949,10 @@ public class PrimaryController {
             return;
         }
 
-        ReporteServicio reporte = new ReporteServicio(
-                cliente, fecha, txtArea.getText(), txtRemision.getText(),
-                txtCotizacion.getText(), txtFactura.getText(),
-                txtDatosEquipo.getText(), txtDescripcion.getText());
-
-        for (CategoriaFotografica categoria : categorias) {
-            CategoriaFotografica copiaCategoria = new CategoriaFotografica(categoria.getTitulo());
-            for (FotoEvidencia foto : categoria.getFotografias()) {
-                FotoEvidencia copiaFoto = new FotoEvidencia(foto.getRuta(), foto.getEtiqueta());
-                copiaFoto.setAncho(foto.getAncho());
-                copiaCategoria.agregarFotografia(copiaFoto);
-            }
-            reporte.agregarCategoriaFotografica(copiaCategoria);
-        }
+        ReporteServicio reporte = crearReporteActual();
 
         try {
-            PdfReportGenerator.generar(destino, reporte);
+            PdfReportGenerator.generar(destino, reporte, activeTemplate);
             mostrarAlerta(Alert.AlertType.INFORMATION, "PDF generado",
                     "El reporte se generó correctamente en:\n" + destino.getAbsolutePath());
         } catch (Exception e) {
@@ -186,33 +992,57 @@ public class PrimaryController {
         VBox pagina1 = crearHojaPaginaWord();
         String empresa = valorOVacio(txtCliente.getText()).equals("—")
                 ? "" : txtCliente.getText().trim().toUpperCase();
-        Label titulo = new Label("Reporte de Servicio Elaborado para\n"
-                + (empresa.isEmpty() ? "____________" : empresa));
-        titulo.setFont(Font.font("Arial", FontWeight.BOLD, FontPosture.ITALIC, 14));
-        titulo.setTextFill(Color.web("#5b7699"));
-        titulo.setWrapText(true);
-        titulo.setAlignment(Pos.CENTER);
-        titulo.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+        VBox titulo = new VBox(0);
+        boolean justifyHeader = "JUSTIFY".equals(activeTemplate.getHeaderTextAlignment());
+        boolean leftHeader = "LEFT".equals(activeTemplate.getHeaderTextAlignment());
+        titulo.setAlignment(leftHeader || justifyHeader ? Pos.CENTER_LEFT : Pos.CENTER);
+        List<HeaderLine> lineasEncabezado = activeTemplate.getHeaderLines().isEmpty()
+                ? TemplateDefinition.defaults().getHeaderLines() : activeTemplate.getHeaderLines();
+        for (HeaderLine lineaEncabezado : lineasEncabezado) {
+            Label lineaTitulo = new Label(lineaEncabezado.getText().replace("{empresa}",
+                    empresa.isEmpty() ? "____________" : empresa));
+            aplicarEstiloTexto(lineaTitulo, lineaEncabezado.getStyle());
+            lineaTitulo.setWrapText(true);
+            lineaTitulo.setMaxWidth(Double.MAX_VALUE);
+            lineaTitulo.setAlignment(leftHeader || justifyHeader ? Pos.CENTER_LEFT : Pos.CENTER);
+            lineaTitulo.setTextAlignment(justifyHeader
+                    ? javafx.scene.text.TextAlignment.JUSTIFY
+                    : leftHeader ? javafx.scene.text.TextAlignment.LEFT
+                    : javafx.scene.text.TextAlignment.CENTER);
+            titulo.getChildren().add(lineaTitulo);
+        }
 
-        ImageView logo = new ImageView(new Image(
-                App.class.getResource("Imagen12.jpg").toExternalForm()));
+        ImageView logo = new ImageView(cargarImagenEncabezado());
         logo.setPreserveRatio(true);
-        logo.setFitWidth(135);
-        logo.setFitHeight(87);
+        logo.setFitWidth(activeTemplate.getHeaderImageWidth());
 
-        HBox encabezadoDocumento = new HBox(18, logo, titulo);
-        encabezadoDocumento.setAlignment(Pos.CENTER);
+        Node headerGroup;
+        if ("STACKED".equals(activeTemplate.getHeaderLayout())) {
+            titulo.setPrefWidth(ReportLayout.CONTENT_WIDTH);
+            VBox stacked = new VBox(activeTemplate.getHeaderGap(), logo, titulo);
+            stacked.setAlignment(Pos.CENTER);
+            headerGroup = stacked;
+        } else {
+            double textWidth = ReportLayout.estimateHeaderTextWidth(activeTemplate, empresa);
+            titulo.setPrefWidth(textWidth);
+            titulo.setMinWidth(textWidth);
+            titulo.setMaxWidth(textWidth);
+            HBox together = new HBox(activeTemplate.getHeaderGap(), logo, titulo);
+            together.setAlignment(Pos.CENTER);
+            together.setMaxWidth(Region.USE_PREF_SIZE);
+            headerGroup = together;
+        }
+        StackPane encabezadoDocumento = new StackPane(headerGroup);
         encabezadoDocumento.setPrefWidth(ReportLayout.CONTENT_WIDTH);
         encabezadoDocumento.setMaxWidth(ReportLayout.CONTENT_WIDTH);
-        HBox.setHgrow(titulo, Priority.ALWAYS);
-        VBox.setMargin(encabezadoDocumento, new Insets(0, 0, 5, 0));
+        VBox.setMargin(encabezadoDocumento, new Insets(0, 0, 2, 0));
         pagina1.getChildren().add(encabezadoDocumento);
 
         javafx.scene.shape.Line linea = new javafx.scene.shape.Line(
                 0, 0, ReportLayout.CONTENT_WIDTH, 0);
         linea.setStroke(Color.web("#8ca3bf"));
         linea.setStrokeWidth(0.5);
-        VBox.setMargin(linea, new Insets(5, 0, 15, 0));
+        VBox.setMargin(linea, new Insets(3, 0, 6, 0));
         pagina1.getChildren().add(linea);
 
         GridPane tabla = new GridPane();
@@ -223,26 +1053,26 @@ public class PrimaryController {
         col2.setPercentWidth(62);
         tabla.getColumnConstraints().addAll(col1, col2);
 
-        String fechaTexto = dpFecha.getValue() != null
-                ? dpFecha.getValue().format(FORMATO_FECHA) : "";
-        agregarFilaTabla(tabla, 0, "Fecha de Recepción de Equipo:", fechaTexto);
-        agregarFilaTabla(tabla, 1, "Área:", txtArea.getText());
-        agregarFilaTabla(tabla, 2, "Remisión:", txtRemision.getText());
-        agregarFilaTabla(tabla, 3, "Cotización:", txtCotizacion.getText());
-        agregarFilaTabla(tabla, 4, "Factura:", txtFactura.getText());
-        pagina1.getChildren().add(tabla);
+        int fila = 0;
+        for (FieldDefinition definition : activeTemplate.orderedFields()) {
+            if (definition.isVisible()) {
+                agregarFilaTabla(tabla, fila++, definition.getLabel(),
+                        getFieldValue(definition.getKey()), definition.getBackgroundColor());
+            }
+        }
+        if (fila > 0) pagina1.getChildren().add(tabla);
 
         VBox tablaReporte = crearTablaReportePreview();
         VBox.setMargin(tablaReporte, new Insets(10, 0, 0, 0));
         agregarSeccionPreview(tablaReporte,
-                "1.  DATOS DEL EQUIPO:", valorOVacio(txtDatosEquipo.getText()));
+                activeTemplate.getSection1Title(), valorOVacio(txtDatosEquipo.getText()));
         agregarSeccionPreview(tablaReporte,
-                "2.  DESCRIPCIÓN DEL TRABAJO:", valorOVacio(txtDescripcion.getText()));
+                activeTemplate.getSection2Title(), valorOVacio(txtDescripcion.getText()));
         pagina1.getChildren().add(tablaReporte);
 
         panePreview.getChildren().add(pagina1);
         double espacioDisponible = ReportLayout.initialPhotoSpace(
-                txtDatosEquipo.getText(), txtDescripcion.getText());
+                txtDatosEquipo.getText(), txtDescripcion.getText(), activeTemplate, fila);
         agregarPaginasFotosPreview(new PreviewPageState(
                 pagina1, tablaReporte, Math.max(0, espacioDisponible)));
     }
@@ -320,8 +1150,24 @@ public class PrimaryController {
                     actualizarPreview();
                 });
 
-                HBox filaAncho = new HBox(8, etiquetaAncho, sliderAncho, eliminarFoto);
+                Button recortarFoto = new Button("Recortar");
+                recortarFoto.setOnAction(event -> recortarFotografia(foto));
+
+                Button restaurarFoto = new Button("Restaurar original");
+                restaurarFoto.setVisible(estaRecortada(foto));
+                restaurarFoto.setManaged(estaRecortada(foto));
+                restaurarFoto.setOnAction(event -> {
+                    foto.setRuta(foto.getRutaOriginal());
+                    foto.setCropX(0); foto.setCropY(0);
+                    foto.setCropWidth(1); foto.setCropHeight(1);
+                    actualizarControlesFotos();
+                    actualizarPreview();
+                });
+
+                HBox filaAncho = new HBox(8, etiquetaAncho, sliderAncho);
                 filaAncho.setAlignment(Pos.CENTER_LEFT);
+                HBox accionesFoto = new HBox(8, recortarFoto, restaurarFoto, eliminarFoto);
+                accionesFoto.setAlignment(Pos.CENTER_RIGHT);
 
                 TextArea detalle = new TextArea(valorSinNulo(foto.getEtiqueta()));
                 detalle.setPromptText("Descripción detallada opcional de esta imagen");
@@ -332,7 +1178,7 @@ public class PrimaryController {
                     actualizarPreview();
                 });
 
-                VBox controlesFoto = new VBox(5, filaAncho, detalle);
+                VBox controlesFoto = new VBox(5, filaAncho, accionesFoto, detalle);
                 controlesFoto.setPadding(new Insets(7, 0, 7, 8));
                 controlesFoto.setStyle("-fx-border-color: transparent transparent #e2e8f0 transparent;");
                 tarjetaCategoria.getChildren().add(controlesFoto);
@@ -346,23 +1192,147 @@ public class PrimaryController {
         }
     }
 
+    private boolean estaRecortada(FotoEvidencia foto) {
+        return foto.getRutaOriginal() != null && foto.getRuta() != null
+                && !Path.of(foto.getRutaOriginal()).toAbsolutePath().normalize().equals(
+                Path.of(foto.getRuta()).toAbsolutePath().normalize());
+    }
+
+    private void recortarFotografia(FotoEvidencia foto) {
+        File original = new File(foto.getRutaOriginal());
+        if (!original.isFile()) {
+            mostrarAlerta(Alert.AlertType.ERROR, "No se puede recortar",
+                    "No se encontró la fotografía original.");
+            return;
+        }
+
+        Image imagen = new Image(original.toURI().toString());
+        if (imagen.isError() || imagen.getWidth() <= 0 || imagen.getHeight() <= 0) {
+            mostrarAlerta(Alert.AlertType.ERROR, "No se puede recortar",
+                    "El formato de la imagen no pudo abrirse.");
+            return;
+        }
+
+        double escala = Math.min(760.0 / imagen.getWidth(), 500.0 / imagen.getHeight());
+        escala = Math.min(1.0, escala);
+        double ancho = Math.max(1, imagen.getWidth() * escala);
+        double alto = Math.max(1, imagen.getHeight() * escala);
+
+        Pane superficie = new Pane();
+        superficie.setPrefSize(ancho, alto);
+        superficie.setMinSize(ancho, alto);
+        superficie.setMaxSize(ancho, alto);
+        ImageView vista = new ImageView(imagen);
+        vista.setFitWidth(ancho);
+        vista.setFitHeight(alto);
+        vista.setPreserveRatio(false);
+        javafx.scene.shape.Rectangle seleccion = new javafx.scene.shape.Rectangle();
+        seleccion.setFill(Color.color(0.15, 0.45, 0.95, 0.18));
+        seleccion.setStroke(Color.web("#2563eb"));
+        seleccion.setStrokeWidth(2);
+
+        double inicialX = Math.max(0, foto.getCropX()) * ancho;
+        double inicialY = Math.max(0, foto.getCropY()) * alto;
+        double inicialW = Math.min(1, foto.getCropWidth()) * ancho;
+        double inicialH = Math.min(1, foto.getCropHeight()) * alto;
+        seleccion.setX(inicialX); seleccion.setY(inicialY);
+        seleccion.setWidth(Math.max(1, inicialW)); seleccion.setHeight(Math.max(1, inicialH));
+        superficie.getChildren().addAll(vista, seleccion);
+
+        final double[] inicio = new double[2];
+        superficie.setOnMousePressed(event -> {
+            inicio[0] = Math.max(0, Math.min(ancho, event.getX()));
+            inicio[1] = Math.max(0, Math.min(alto, event.getY()));
+            seleccion.setX(inicio[0]); seleccion.setY(inicio[1]);
+            seleccion.setWidth(0); seleccion.setHeight(0);
+        });
+        superficie.setOnMouseDragged(event -> {
+            double x = Math.max(0, Math.min(ancho, event.getX()));
+            double y = Math.max(0, Math.min(alto, event.getY()));
+            seleccion.setX(Math.min(inicio[0], x));
+            seleccion.setY(Math.min(inicio[1], y));
+            seleccion.setWidth(Math.abs(x - inicio[0]));
+            seleccion.setHeight(Math.abs(y - inicio[1]));
+        });
+
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.setTitle("Recortar imagen");
+        dialog.setHeaderText("Arrastra sobre la fotografía para elegir el área que deseas conservar");
+        ButtonType aplicar = new ButtonType("Aplicar recorte", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(aplicar, ButtonType.CANCEL);
+        Button todo = new Button("Seleccionar toda la imagen");
+        todo.setOnAction(event -> {
+            seleccion.setX(0); seleccion.setY(0);
+            seleccion.setWidth(ancho); seleccion.setHeight(alto);
+        });
+        dialog.getDialogPane().setContent(new VBox(10, superficie, todo));
+        dialog.initOwner(btnGenerarPDF.getScene().getWindow());
+        Optional<ButtonType> resultado = dialog.showAndWait();
+        if (resultado.isEmpty() || resultado.get() != aplicar) return;
+        if (seleccion.getWidth() < 3 || seleccion.getHeight() < 3) {
+            mostrarAlerta(Alert.AlertType.WARNING, "Área demasiado pequeña",
+                    "Selecciona un área visible de la fotografía.");
+            return;
+        }
+
+        try {
+            BufferedImage fuente = ImageIO.read(original);
+            if (fuente == null) throw new IllegalArgumentException("Formato no compatible");
+            double nx = seleccion.getX() / ancho;
+            double ny = seleccion.getY() / alto;
+            double nw = seleccion.getWidth() / ancho;
+            double nh = seleccion.getHeight() / alto;
+            int x = Math.max(0, Math.min(fuente.getWidth() - 1,
+                    (int) Math.round(nx * fuente.getWidth())));
+            int y = Math.max(0, Math.min(fuente.getHeight() - 1,
+                    (int) Math.round(ny * fuente.getHeight())));
+            int width = Math.max(1, Math.min(fuente.getWidth() - x,
+                    (int) Math.round(nw * fuente.getWidth())));
+            int height = Math.max(1, Math.min(fuente.getHeight() - y,
+                    (int) Math.round(nh * fuente.getHeight())));
+            BufferedImage recorte = fuente.getSubimage(x, y, width, height);
+            Path carpeta = AppDirectories.cache().resolve("recortes");
+            Files.createDirectories(carpeta);
+            Path salida = carpeta.resolve("recorte-" + UUID.randomUUID() + ".png");
+            if (!ImageIO.write(recorte, "png", salida.toFile())) {
+                throw new IllegalStateException("No fue posible guardar el recorte");
+            }
+            foto.setRuta(salida.toAbsolutePath().toString());
+            foto.setCropX(nx); foto.setCropY(ny);
+            foto.setCropWidth(nw); foto.setCropHeight(nh);
+            actualizarControlesFotos();
+            actualizarPreview();
+        } catch (Exception ex) {
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo recortar", ex.getMessage());
+        }
+    }
+
     private void agregarPaginasFotosPreview(PreviewPageState estado) {
         if (categorias.isEmpty()) {
             return;
         }
 
-        if (ReportLayout.PHOTO_SECTION_HEIGHT > estado.espacioDisponible) {
+        CategoriaFotografica primeraCategoria = categorias.get(0);
+        double bloqueInicial = ReportLayout.estimatePhotoSectionHeight(
+                activeTemplate.getSection3Title(), false)
+                + ReportLayout.estimateCategoryTitleHeight(
+                valorOVacio(primeraCategoria.getTitulo()),
+                activeTemplate.getCategoryTitleStyle().getFontSize())
+                + estimarPrimeraFila(primeraCategoria);
+        if (bloqueInicial > estado.espacioDisponible) {
             estado = crearPaginaFotos(false);
         } else {
             estado.tabla.getChildren().add(barraSeccionPreview(
-                    "3.  REPORTE FOTOGRÁFICO DEL ANTES, DURANTE Y DESPUÉS DE REALIZAR EL TRABAJO:"));
-            estado.espacioDisponible -= ReportLayout.PHOTO_SECTION_HEIGHT;
+                    activeTemplate.getSection3Title()));
+            estado.espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
+                    activeTemplate.getSection3Title(), false);
         }
 
         for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
             CategoriaFotografica categoria = categorias.get(categoriaIndex);
             String tituloCategoria = valorOVacio(categoria.getTitulo());
-            double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(tituloCategoria)
+            double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(tituloCategoria,
+                    activeTemplate.getCategoryTitleStyle().getFontSize())
                     + estimarPrimeraFila(categoria);
             if (altoMinimoCategoria > estado.espacioDisponible) {
                 estado = crearPaginaFotos(true);
@@ -372,7 +1342,8 @@ public class PrimaryController {
             configurarDestinoDrop(
                     encabezadoCategoria, categoriaIndex, categoria.getFotografias().size());
             estado.tabla.getChildren().add(encabezadoCategoria);
-            estado.espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(tituloCategoria);
+            estado.espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(tituloCategoria,
+                    activeTemplate.getCategoryTitleStyle().getFontSize());
 
             if (categoria.getFotografias().isEmpty()) {
                 Label zonaVacia = new Label("Arrastra imágenes aquí");
@@ -407,7 +1378,8 @@ public class PrimaryController {
                     configurarDestinoDrop(continuacion, categoriaIndex, inicioFila);
                     estado.tabla.getChildren().add(continuacion);
                     estado.espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(
-                            tituloCategoria + " (continuación)");
+                            tituloCategoria + " (continuación)",
+                            activeTemplate.getCategoryTitleStyle().getFontSize());
                 }
 
                 double altoMaximoFila = Math.max(1,
@@ -446,10 +1418,11 @@ public class PrimaryController {
         double espacioDisponible = ReportLayout.CONTENT_HEIGHT;
         HBox encabezado = barraSeccionPreview(
                 continuacion
-                        ? "3.  REPORTE FOTOGRÁFICO (CONTINUACIÓN):"
-                        : "3.  REPORTE FOTOGRÁFICO DEL ANTES, DURANTE Y DESPUÉS DE REALIZAR EL TRABAJO:");
+                        ? activeTemplate.getSection3Title() + " (CONTINUACIÓN)"
+                        : activeTemplate.getSection3Title());
         tablaFotos.getChildren().add(encabezado);
-        espacioDisponible -= ReportLayout.PHOTO_SECTION_HEIGHT;
+        espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
+                activeTemplate.getSection3Title(), continuacion);
         panePreview.getChildren().add(pagina);
         return new PreviewPageState(pagina, tablaFotos, espacioDisponible);
     }
@@ -496,8 +1469,14 @@ public class PrimaryController {
 
     private Label crearTituloCategoriaPreview(String titulo) {
         Label encabezado = new Label(titulo);
-        encabezado.setFont(Font.font("System", FontWeight.BOLD, 14));
-        encabezado.setTextFill(Color.web("#1f4e79"));
+        aplicarEstiloTexto(encabezado, activeTemplate.getCategoryTitleStyle());
+        String alignment = activeTemplate.getCategoryTitleAlignment();
+        encabezado.setAlignment("CENTER".equals(alignment) ? Pos.CENTER
+                : Pos.CENTER_LEFT);
+        encabezado.setTextAlignment("JUSTIFY".equals(alignment)
+                ? javafx.scene.text.TextAlignment.JUSTIFY
+                : "CENTER".equals(alignment) ? javafx.scene.text.TextAlignment.CENTER
+                : javafx.scene.text.TextAlignment.LEFT);
         encabezado.setWrapText(true);
         encabezado.setPrefWidth(ReportLayout.CONTENT_WIDTH);
         encabezado.setMaxWidth(ReportLayout.CONTENT_WIDTH);
@@ -515,7 +1494,8 @@ public class PrimaryController {
         }
         double anchoInterior = anchoCelda;
         double altoDescripcion = ReportLayout.estimateDescriptionHeight(
-                foto.getEtiqueta(), anchoInterior);
+                foto.getEtiqueta(), anchoInterior,
+                activeTemplate.getPhotoCommentStyle().getFontSize());
         double[] tamanoNatural = ReportLayout.scaleImage(
                 imagen.getWidth(), imagen.getHeight(), foto.getAncho(),
                 anchoInterior,
@@ -550,8 +1530,7 @@ public class PrimaryController {
 
         if (datos.altoDescripcion > 0) {
             Label descripcion = new Label(datos.foto.getEtiqueta().trim());
-            descripcion.setFont(Font.font("System", FontPosture.ITALIC, 11));
-            descripcion.setTextFill(Color.web("#334155"));
+            aplicarEstiloTexto(descripcion, activeTemplate.getPhotoCommentStyle());
             descripcion.setWrapText(true);
             descripcion.setMaxWidth(anchoCelda);
             celda.getChildren().add(descripcion);
@@ -715,7 +1694,7 @@ public class PrimaryController {
     private void agregarSeccionPreview(VBox tabla, String titulo, String contenido) {
         Label encabezado = new Label(titulo);
         encabezado.setFont(Font.font("System", FontWeight.BOLD, 12));
-        encabezado.setStyle("-fx-background-color: #bfbfbf; "
+        encabezado.setStyle("-fx-background-color: " + activeTemplate.getSectionBackgroundColor() + "; "
                 + "-fx-border-color: transparent transparent black transparent; "
                 + "-fx-border-width: 0 0 1 0;");
         encabezado.setPadding(new Insets(6, 10, 6, 10));
@@ -734,7 +1713,7 @@ public class PrimaryController {
     private HBox barraSeccionPreview(String texto) {
         Label lbl = new Label(texto);
         lbl.setFont(Font.font("System", FontWeight.BOLD, 12));
-        lbl.setStyle("-fx-background-color: #bfbfbf; "
+        lbl.setStyle("-fx-background-color: " + activeTemplate.getSectionBackgroundColor() + "; "
                 + "-fx-border-color: transparent transparent black transparent; "
                 + "-fx-border-width: 0 0 1 0;");
         lbl.setPadding(new Insets(6, 10, 6, 10));
@@ -750,10 +1729,11 @@ public class PrimaryController {
         return contenedor;
     }
 
-    private void agregarFilaTabla(GridPane tabla, int fila, String etiqueta, String valor) {
+    private void agregarFilaTabla(GridPane tabla, int fila, String etiqueta, String valor,
+                                  String backgroundColor) {
         Label lblEtiqueta = new Label(etiqueta);
         lblEtiqueta.setFont(Font.font("System", FontWeight.BOLD, 12));
-        lblEtiqueta.setStyle("-fx-background-color: #d9d9d9; -fx-border-color: #999999; "
+        lblEtiqueta.setStyle("-fx-background-color: " + backgroundColor + "; -fx-border-color: #999999; "
                 + "-fx-border-width: 0.5px;");
         lblEtiqueta.setPadding(new Insets(6, 10, 6, 10));
         lblEtiqueta.setMaxWidth(Double.MAX_VALUE);
@@ -767,6 +1747,36 @@ public class PrimaryController {
 
         tabla.add(lblEtiqueta, 0, fila);
         tabla.add(lblValor, 1, fila);
+    }
+
+    private String getFieldValue(String key) {
+        return switch (key) {
+            case "fecha" -> dpFecha.getValue() == null ? "" : dpFecha.getValue().format(FORMATO_FECHA);
+            case "area" -> txtArea.getText();
+            case "remision" -> txtRemision.getText();
+            case "cotizacion" -> txtCotizacion.getText();
+            case "factura" -> txtFactura.getText();
+            default -> customValueControls.containsKey(key)
+                    ? customValueControls.get(key).getText() : "";
+        };
+    }
+
+    private void aplicarEstiloTexto(Label label, TextStyle style) {
+        FontWeight weight = style.isBold() ? FontWeight.BOLD : FontWeight.NORMAL;
+        FontPosture posture = style.isItalic() ? FontPosture.ITALIC : FontPosture.REGULAR;
+        label.setFont(Font.font(style.getFontFamily(), weight, posture, style.getFontSize()));
+        try { label.setTextFill(Color.web(style.getColor())); }
+        catch (Exception ignored) { label.setTextFill(Color.DARKSLATEGRAY); }
+    }
+
+    private Image cargarImagenEncabezado() {
+        try {
+            if (!activeTemplate.getHeaderImageBase64().isBlank()) {
+                return new Image(new ByteArrayInputStream(Base64.getDecoder().decode(
+                        activeTemplate.getHeaderImageBase64())));
+            }
+        } catch (Exception ignored) {}
+        return new Image(App.class.getResource("Imagen12.jpg").toExternalForm());
     }
 
     private String valorOVacio(String texto) {

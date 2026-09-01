@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [ValidatePattern('^[A-Za-z0-9 _-]+$')]
+    [string]$OutputDirectory = "paquete"
+)
 
 $ErrorActionPreference = "Stop"
 $PSNativeCommandUseErrorActionPreference = $true
@@ -9,7 +12,7 @@ $jdkBin = "C:\Program Files\Java\jdk-26.0.2.1\bin"
 $buildRoot = Join-Path $projectRoot "build-exe"
 $classesDir = Join-Path $buildRoot "classes"
 $inputDir = Join-Path $buildRoot "input"
-$outputRoot = Join-Path $projectRoot "paquete"
+$outputRoot = Join-Path $projectRoot $OutputDirectory
 $applicationDir = Join-Path $outputRoot "Reportes TEOSA"
 
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "pom.xml"))) {
@@ -28,7 +31,8 @@ $dependencies = @(
     "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-graphics\25\javafx-graphics-25-win.jar",
     "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-controls\25\javafx-controls-25-win.jar",
     "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-fxml\25\javafx-fxml-25-win.jar",
-    "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar"
+    "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar",
+    "C:\Users\Usuario\.m2\repository\com\google\code\gson\gson\2.14.0\gson-2.14.0.jar"
 )
 
 foreach ($dependency in $dependencies) {
@@ -87,6 +91,7 @@ Write-Host "Generando el ejecutable autocontenido..." -ForegroundColor Cyan
     --input $inputDir `
     --main-jar "app-prototipo.jar" `
     --main-class "com.teosa.app.prototipo.Launcher" `
+    --java-options "--enable-native-access=ALL-UNNAMED" `
     --app-version "1.0.0" `
     --vendor "TEOSA"
 

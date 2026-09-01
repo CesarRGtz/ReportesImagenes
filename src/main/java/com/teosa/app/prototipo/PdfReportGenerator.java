@@ -12,13 +12,24 @@ import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import com.lowagie.text.pdf.BaseFont;
 import com.lowagie.text.pdf.draw.LineSeparator;
+import com.teosa.app.prototipo.data.CustomFieldValue;
+import com.teosa.app.prototipo.data.FieldDefinition;
+import com.teosa.app.prototipo.data.HeaderLine;
+import com.teosa.app.prototipo.data.TemplateDefinition;
+import com.teosa.app.prototipo.data.TextStyle;
 
 import java.awt.Color;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PdfReportGenerator {
 
@@ -29,89 +40,123 @@ public class PdfReportGenerator {
     private static final Color GRIS_LINEA = new Color(140, 163, 191);
 
     public static void generar(File destino, ReporteServicio reporte) throws Exception {
+        generar(destino, reporte, TemplateDefinition.defaults());
+    }
+
+    public static void generar(File destino, ReporteServicio reporte,
+                               TemplateDefinition template) throws Exception {
+        if (template == null) template = TemplateDefinition.defaults();
         Document documento = new Document(PageSize.LETTER, 50, 50, 45, 45);
         PdfWriter.getInstance(documento, new FileOutputStream(destino));
         documento.open();
 
-        Font fuenteTitulo = new Font(Font.HELVETICA, 14, Font.BOLDITALIC, AZUL_TITULO);
         Font fuenteEtiqueta = new Font(Font.HELVETICA, 12, Font.BOLD, Color.BLACK);
         Font fuenteValor = new Font(Font.HELVETICA, 12, Font.BOLD, Color.BLACK);
         Font fuenteSeccion = new Font(Font.HELVETICA, 12, Font.BOLD, Color.BLACK);
         Font fuenteNormal = new Font(Font.HELVETICA, 12, Font.NORMAL, Color.BLACK);
-        Font fuenteCategoria = new Font(Font.HELVETICA, 14, Font.BOLD, AZUL_CAPTION);
-        Font fuenteDescripcionFoto = new Font(Font.HELVETICA, 11, Font.ITALIC, Color.DARK_GRAY);
+        Font fuenteCategoria = crearFuente(template.getCategoryTitleStyle());
+        Font fuenteDescripcionFoto = crearFuente(template.getPhotoCommentStyle());
 
-        agregarEncabezado(documento, reporte, fuenteTitulo);
+        agregarEncabezado(documento, reporte, template);
 
         PdfPTable datosTable = new PdfPTable(2);
         datosTable.setWidthPercentage(100);
         datosTable.setWidths(new float[]{38f, 62f});
-        agregarFilaDatos(datosTable, "Fecha de Recepción de Equipo:", reporte.getFecha(),
-                fuenteEtiqueta, fuenteValor);
-        agregarFilaDatos(datosTable, "Área:", reporte.getArea(), fuenteEtiqueta, fuenteValor);
-        agregarFilaDatos(datosTable, "Remisión:", reporte.getRemision(), fuenteEtiqueta, fuenteValor);
-        agregarFilaDatos(datosTable, "Cotización:", reporte.getCotizacion(), fuenteEtiqueta, fuenteValor);
-        agregarFilaDatos(datosTable, "Factura:", reporte.getFactura(), fuenteEtiqueta, fuenteValor);
+        List<FieldDefinition> camposVisibles = template.orderedFields().stream()
+                .filter(FieldDefinition::isVisible).toList();
+        Map<String, String> valores = valoresCampos(reporte);
+        for (FieldDefinition campo : camposVisibles) {
+            agregarFilaDatos(datosTable, campo.getLabel(), valores.get(campo.getKey()),
+                    fuenteEtiqueta, fuenteValor, color(campo.getBackgroundColor(), GRIS_ETIQUETA),
+                    Math.max(27.0, ReportLayout.generalDataHeight(camposVisibles.size())
+                            / Math.max(1, camposVisibles.size())));
+        }
         datosTable.setSpacingAfter(10f);
-        documento.add(datosTable);
+        if (!camposVisibles.isEmpty()) documento.add(datosTable);
 
         PdfPTable tablaReporte = crearTablaReporte();
-        agregarSeccion(tablaReporte, "1.  DATOS DEL EQUIPO:",
-                reporte.getDatosEquipo(), fuenteSeccion, fuenteNormal);
-        agregarSeccion(tablaReporte, "2.  DESCRIPCIÓN DEL TRABAJO:",
-                reporte.getDescripcion(), fuenteSeccion, fuenteNormal);
+        Color colorSeccion = color(template.getSectionBackgroundColor(), GRIS_SECCION);
+        agregarSeccion(tablaReporte, template.getSection1Title(),
+                reporte.getDatosEquipo(), fuenteSeccion, fuenteNormal, colorSeccion);
+        agregarSeccion(tablaReporte, template.getSection2Title(),
+                reporte.getDescripcion(), fuenteSeccion, fuenteNormal, colorSeccion);
 
         List<CategoriaFotografica> categorias = obtenerCategoriasConFotos(reporte);
         if (!categorias.isEmpty()) {
             double espacioDisponible = ReportLayout.initialPhotoSpace(
-                    reporte.getDatosEquipo(), reporte.getDescripcion());
-            if (ReportLayout.PHOTO_SECTION_HEIGHT > espacioDisponible) {
+                    reporte.getDatosEquipo(), reporte.getDescripcion(), template,
+                    camposVisibles.size());
+            CategoriaFotografica primeraCategoria = categorias.get(0);
+            String primerTitulo = valorOVacio(primeraCategoria.getTitulo());
+            int finInicial = calcularFinFila(primeraCategoria, 0);
+            float[] anchosIniciales = calcularAnchosFila(primeraCategoria, 0, finInicial);
+            double bloqueInicial = ReportLayout.estimatePhotoSectionHeight(
+                    template.getSection3Title(), false)
+                    + ReportLayout.estimateCategoryTitleHeight(primerTitulo,
+                    template.getCategoryTitleStyle().getFontSize())
+                    + estimarAltoFilaPdf(primeraCategoria, 0, finInicial, anchosIniciales,
+                    template.getPhotoCommentStyle())
+                    + ReportLayout.PHOTO_SPACING;
+            if (bloqueInicial > espacioDisponible) {
                 documento.add(tablaReporte);
                 documento.newPage();
                 tablaReporte = crearTablaReporte();
                 espacioDisponible = ReportLayout.CONTENT_HEIGHT;
             }
-            agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, false);
-            espacioDisponible -= ReportLayout.PHOTO_SECTION_HEIGHT;
+            agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, false,
+                    template.getSection3Title(), colorSeccion);
+            espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
+                    template.getSection3Title(), false);
 
             for (CategoriaFotografica categoria : categorias) {
                 String textoCategoria = valorOVacio(categoria.getTitulo());
                 int primerFin = calcularFinFila(categoria, 0);
                 float[] primerosAnchos = calcularAnchosFila(categoria, 0, primerFin);
-                double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(textoCategoria)
-                        + estimarAltoFilaPdf(categoria, 0, primerFin, primerosAnchos)
+                double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(textoCategoria,
+                        template.getCategoryTitleStyle().getFontSize())
+                        + estimarAltoFilaPdf(categoria, 0, primerFin, primerosAnchos,
+                        template.getPhotoCommentStyle())
                         + ReportLayout.PHOTO_SPACING;
                 if (altoMinimoCategoria > espacioDisponible) {
                     documento.add(tablaReporte);
                     documento.newPage();
                     tablaReporte = crearTablaReporte();
-                    agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, true);
+                    agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, true,
+                            template.getSection3Title(), colorSeccion);
                     espacioDisponible = ReportLayout.CONTENT_HEIGHT
-                            - ReportLayout.PHOTO_SECTION_HEIGHT;
+                            - ReportLayout.estimatePhotoSectionHeight(
+                            template.getSection3Title(), true);
                 }
-                agregarTituloCategoria(tablaReporte, textoCategoria, fuenteCategoria);
-                espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(textoCategoria);
+                agregarTituloCategoria(tablaReporte, textoCategoria, fuenteCategoria,
+                        template.getCategoryTitleAlignment());
+                espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(textoCategoria,
+                        template.getCategoryTitleStyle().getFontSize());
 
                 int inicio = 0;
                 while (inicio < categoria.getFotografias().size()) {
                     int fin = calcularFinFila(categoria, inicio);
                     float[] anchos = calcularAnchosFila(categoria, inicio, fin);
-                    double altoFila = estimarAltoFilaPdf(categoria, inicio, fin, anchos)
+                    double altoFila = estimarAltoFilaPdf(categoria, inicio, fin, anchos,
+                            template.getPhotoCommentStyle())
                             + ReportLayout.PHOTO_SPACING;
                     if (altoFila > espacioDisponible) {
                         documento.add(tablaReporte);
                         documento.newPage();
                         tablaReporte = crearTablaReporte();
-                        agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, true);
+                        agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, true,
+                                template.getSection3Title(), colorSeccion);
                         String continuacion = textoCategoria + " (continuación)";
-                        agregarTituloCategoria(tablaReporte, continuacion, fuenteCategoria);
+                        agregarTituloCategoria(tablaReporte, continuacion, fuenteCategoria,
+                                template.getCategoryTitleAlignment());
                         espacioDisponible = ReportLayout.CONTENT_HEIGHT
-                                - ReportLayout.PHOTO_SECTION_HEIGHT
-                                - ReportLayout.estimateCategoryTitleHeight(continuacion);
+                                - ReportLayout.estimatePhotoSectionHeight(
+                                template.getSection3Title(), true)
+                                - ReportLayout.estimateCategoryTitleHeight(continuacion,
+                                template.getCategoryTitleStyle().getFontSize());
                     }
 
                     agregarFilaFotos(tablaReporte, categoria, inicio, fin, anchos,
-                            fuenteDescripcionFoto);
+                            fuenteDescripcionFoto, template.getPhotoCommentStyle());
                     espacioDisponible -= altoFila;
                     inicio = fin;
                 }
@@ -131,26 +176,31 @@ public class PdfReportGenerator {
     }
 
     private static void agregarEncabezadoFotografico(
-            PdfPTable tabla, Font fuente, boolean continuacion) {
+            PdfPTable tabla, Font fuente, boolean continuacion,
+            String titulo, Color fondo) {
         String texto = continuacion
-                ? "3.  REPORTE FOTOGRÁFICO (CONTINUACIÓN):"
-                : "3.  REPORTE FOTOGRÁFICO DEL ANTES, DURANTE Y DESPUÉS DE REALIZAR EL TRABAJO:";
-        PdfPCell encabezado = celdaEncabezado(texto, fuente);
-        encabezado.setMinimumHeight((float) ReportLayout.PHOTO_SECTION_HEIGHT);
+                ? valorOVacio(titulo) + " (CONTINUACIÓN)"
+                : valorOVacio(titulo);
+        PdfPCell encabezado = celdaEncabezado(texto, fuente, fondo);
+        encabezado.setMinimumHeight((float) ReportLayout.estimatePhotoSectionHeight(
+                titulo, continuacion));
         tabla.addCell(encabezado);
     }
 
     private static void agregarTituloCategoria(
-            PdfPTable tabla, String titulo, Font fuenteCategoria) {
+            PdfPTable tabla, String titulo, Font fuenteCategoria, String alignment) {
         PdfPCell celda = new PdfPCell(new Phrase(titulo, fuenteCategoria));
         celda.setPadding(8f);
-        celda.setMinimumHeight((float) ReportLayout.estimateCategoryTitleHeight(titulo));
+        celda.setMinimumHeight((float) ReportLayout.estimateCategoryTitleHeight(
+                titulo, fuenteCategoria.getSize()));
+        celda.setHorizontalAlignment(pdfAlignment(alignment));
         aplicarBorde(celda);
         tabla.addCell(celda);
     }
 
     private static double estimarAltoFilaPdf(
-            CategoriaFotografica categoria, int inicio, int fin, float[] anchos)
+            CategoriaFotografica categoria, int inicio, int fin, float[] anchos,
+            TextStyle estiloDescripcion)
             throws Exception {
         double alto = 0;
         for (int indice = inicio; indice < fin; indice++) {
@@ -158,7 +208,7 @@ public class PdfReportGenerator {
             double ancho = anchos[indice - inicio];
             Image imagen = Image.getInstance(foto.getRuta());
             double altoDescripcion = ReportLayout.estimateDescriptionHeight(
-                    foto.getEtiqueta(), ancho);
+                    foto.getEtiqueta(), ancho, estiloDescripcion.getFontSize());
             double[] tamano = ReportLayout.scaleImage(
                     imagen.getWidth(), imagen.getHeight(), foto.getAncho(), ancho,
                     ReportLayout.CONTENT_HEIGHT - altoDescripcion
@@ -171,7 +221,7 @@ public class PdfReportGenerator {
 
     private static void agregarFilaFotos(
             PdfPTable tabla, CategoriaFotografica categoria, int inicio, int fin,
-            float[] anchos, Font fuenteDescripcion) throws Exception {
+            float[] anchos, Font fuenteDescripcion, TextStyle estiloDescripcion) throws Exception {
         float[] columnas = crearColumnasConSeparacion(anchos);
         PdfPTable fila = new PdfPTable(columnas.length);
         fila.setWidths(columnas);
@@ -194,7 +244,7 @@ public class PdfReportGenerator {
         PdfPCell contenedor = new PdfPCell(fila);
         contenedor.setPadding((float) ReportLayout.PHOTO_CELL_PADDING);
         contenedor.setMinimumHeight((float) estimarAltoFilaPdf(
-                categoria, inicio, fin, anchos));
+                categoria, inicio, fin, anchos, estiloDescripcion));
         contenedor.setBorder(Rectangle.LEFT | Rectangle.RIGHT
                 | (fin == categoria.getFotografias().size()
                 ? Rectangle.BOTTOM : Rectangle.NO_BORDER));
@@ -204,45 +254,88 @@ public class PdfReportGenerator {
     }
 
     private static void agregarEncabezado(
-            Document documento, ReporteServicio reporte, Font fuenteTitulo) throws Exception {
+            Document documento, ReporteServicio reporte, TemplateDefinition template) throws Exception {
         String cliente = valorOVacio(reporte.getCliente());
         String empresa = cliente.equals("—") ? "" : cliente.toUpperCase();
-        PdfPTable encabezado = new PdfPTable(2);
-        encabezado.setWidthPercentage(100);
-        encabezado.setWidths(new float[]{31f, 69f});
-        encabezado.setSpacingAfter(10f);
+        Image logo = cargarLogo(template);
+        float logoWidth = (float) template.getHeaderImageWidth();
+        float logoHeight = (float) (logoWidth / template.getHeaderImageAspectRatio());
+        logo.scaleToFit(logoWidth, logoHeight);
+        PdfPTable titulos = new PdfPTable(1);
+        titulos.setWidthPercentage(100);
+        List<HeaderLine> lineas = template.getHeaderLines();
+        if (lineas.isEmpty()) lineas = TemplateDefinition.defaults().getHeaderLines();
+        for (HeaderLine linea : lineas) {
+            String texto = linea.getText().replace("{empresa}",
+                    empresa.isEmpty() ? "____________" : empresa);
+            Paragraph paragraph = new Paragraph(texto, crearFuente(linea.getStyle()));
+            paragraph.setLeading(0, 1.1f);
+            paragraph.setAlignment(pdfAlignment(template.getHeaderTextAlignment()));
+            PdfPCell lineCell = new PdfPCell(paragraph);
+            lineCell.setBorder(Rectangle.NO_BORDER);
+            lineCell.setPadding(0);
+            lineCell.setHorizontalAlignment(pdfAlignment(template.getHeaderTextAlignment()));
+            titulos.addCell(lineCell);
+        }
 
-        Image logo = Image.getInstance(App.class.getResource("Imagen12.jpg"));
-        logo.scaleToFit(135f, 87f);
-        PdfPCell celdaLogo = new PdfPCell(logo, false);
-        celdaLogo.setBorder(Rectangle.NO_BORDER);
-        celdaLogo.setPadding(0);
-        celdaLogo.setVerticalAlignment(Element.ALIGN_MIDDLE);
-        encabezado.addCell(celdaLogo);
-
-        Paragraph titulo = new Paragraph(
-                "Reporte de Servicio Elaborado para\n"
-                        + (empresa.isEmpty() ? "____________" : empresa), fuenteTitulo);
-        titulo.setAlignment(Element.ALIGN_CENTER);
-        PdfPCell celdaTitulo = new PdfPCell(titulo);
-        celdaTitulo.setBorder(Rectangle.NO_BORDER);
-        celdaTitulo.setPadding(0);
-        celdaTitulo.setHorizontalAlignment(Element.ALIGN_CENTER);
-        celdaTitulo.setVerticalAlignment(Element.ALIGN_MIDDLE);
-        encabezado.addCell(celdaTitulo);
+        PdfPTable encabezado;
+        if ("STACKED".equals(template.getHeaderLayout())) {
+            encabezado = new PdfPTable(1);
+            encabezado.setWidthPercentage(100);
+            PdfPCell celdaLogo = new PdfPCell(logo, false);
+            celdaLogo.setBorder(Rectangle.NO_BORDER);
+            celdaLogo.setPadding(0);
+            celdaLogo.setPaddingBottom((float) template.getHeaderGap());
+            celdaLogo.setHorizontalAlignment(Element.ALIGN_CENTER);
+            encabezado.addCell(celdaLogo);
+            PdfPCell celdaTitulo = new PdfPCell(titulos);
+            celdaTitulo.setBorder(Rectangle.NO_BORDER);
+            celdaTitulo.setPadding(0);
+            encabezado.addCell(celdaTitulo);
+        } else {
+            float textWidth = (float) ReportLayout.estimateHeaderTextWidth(template, empresa);
+            float gap = (float) template.getHeaderGap();
+            encabezado = new PdfPTable(3);
+            encabezado.setWidths(new float[]{logoWidth, Math.max(0.1f, gap), textWidth});
+            encabezado.setTotalWidth(logoWidth + Math.max(0.1f, gap) + textWidth);
+            encabezado.setLockedWidth(true);
+            encabezado.setHorizontalAlignment(Element.ALIGN_CENTER);
+            PdfPCell celdaLogo = new PdfPCell(logo, false);
+            celdaLogo.setBorder(Rectangle.NO_BORDER);
+            celdaLogo.setPadding(0);
+            celdaLogo.setHorizontalAlignment(Element.ALIGN_CENTER);
+            celdaLogo.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            encabezado.addCell(celdaLogo);
+            PdfPCell spacer = new PdfPCell();
+            spacer.setBorder(Rectangle.NO_BORDER);
+            encabezado.addCell(spacer);
+            PdfPCell celdaTitulo = new PdfPCell(titulos);
+            celdaTitulo.setBorder(Rectangle.NO_BORDER);
+            celdaTitulo.setPadding(0);
+            celdaTitulo.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            encabezado.addCell(celdaTitulo);
+        }
+        encabezado.setSpacingAfter(5f);
         documento.add(encabezado);
 
         Paragraph linea = new Paragraph();
         linea.setLeading(1f);
         linea.add(new Chunk(new LineSeparator(
                 0.5f, 100f, GRIS_LINEA, Element.ALIGN_CENTER, 0)));
-        linea.setSpacingAfter(15f);
+        linea.setSpacingAfter(6f);
         documento.add(linea);
     }
 
+    private static Image cargarLogo(TemplateDefinition template) throws Exception {
+        if (!template.getHeaderImageBase64().isBlank()) {
+            return Image.getInstance(Base64.getDecoder().decode(template.getHeaderImageBase64()));
+        }
+        return Image.getInstance(App.class.getResource("Imagen12.jpg"));
+    }
+
     private static void agregarSeccion(PdfPTable tabla, String titulo, String contenido,
-                                       Font fuenteTitulo, Font fuenteContenido) {
-        tabla.addCell(celdaEncabezado(titulo, fuenteTitulo));
+                                       Font fuenteTitulo, Font fuenteContenido, Color fondo) {
+        tabla.addCell(celdaEncabezado(titulo, fuenteTitulo, fondo));
         PdfPCell cuerpo = new PdfPCell(new Phrase(valorOVacio(contenido), fuenteContenido));
         cuerpo.setPaddingTop(8f);
         cuerpo.setPaddingBottom(8f);
@@ -253,14 +346,14 @@ public class PdfReportGenerator {
         tabla.addCell(cuerpo);
     }
 
-    private static PdfPCell celdaEncabezado(String texto, Font fuente) {
+    private static PdfPCell celdaEncabezado(String texto, Font fuente, Color fondo) {
         PdfPCell celda = new PdfPCell(new Phrase(texto, fuente));
-        celda.setBackgroundColor(GRIS_SECCION);
+        celda.setBackgroundColor(fondo);
         celda.setPaddingTop(6f);
         celda.setPaddingBottom(6f);
         celda.setPaddingLeft(10f);
         celda.setPaddingRight(10f);
-        celda.setMinimumHeight((float) ReportLayout.SECTION_HEADER_HEIGHT);
+        celda.setMinimumHeight((float) ReportLayout.estimateSectionHeaderHeight(texto));
         aplicarBorde(celda);
         return celda;
     }
@@ -315,7 +408,7 @@ public class PdfReportGenerator {
         Image imagen = Image.getInstance(foto.getRuta());
         double anchoInterior = anchoCelda;
         double altoDescripcion = ReportLayout.estimateDescriptionHeight(
-                foto.getEtiqueta(), anchoInterior);
+                foto.getEtiqueta(), anchoInterior, fuenteDescripcion.getSize());
         double[] tamano = ReportLayout.scaleImage(
                 imagen.getWidth(), imagen.getHeight(), foto.getAncho(), anchoInterior,
                 ReportLayout.CONTENT_HEIGHT - altoDescripcion
@@ -357,14 +450,15 @@ public class PdfReportGenerator {
     }
 
     private static void agregarFilaDatos(PdfPTable tabla, String etiqueta, String valor,
-                                         Font fuenteEtiqueta, Font fuenteValor) {
+                                         Font fuenteEtiqueta, Font fuenteValor,
+                                         Color fondo, double alto) {
         PdfPCell celdaEtiqueta = new PdfPCell(new Phrase(etiqueta, fuenteEtiqueta));
-        celdaEtiqueta.setBackgroundColor(GRIS_ETIQUETA);
+        celdaEtiqueta.setBackgroundColor(fondo);
         celdaEtiqueta.setPaddingTop(6f);
         celdaEtiqueta.setPaddingBottom(6f);
         celdaEtiqueta.setPaddingLeft(10f);
         celdaEtiqueta.setPaddingRight(10f);
-        celdaEtiqueta.setMinimumHeight((float) (ReportLayout.GENERAL_DATA_HEIGHT / 5.0));
+        celdaEtiqueta.setMinimumHeight((float) alto);
         celdaEtiqueta.setBorderColor(Color.GRAY);
         celdaEtiqueta.setBorderWidth(0.5f);
 
@@ -374,11 +468,89 @@ public class PdfReportGenerator {
         celdaValor.setPaddingBottom(6f);
         celdaValor.setPaddingLeft(10f);
         celdaValor.setPaddingRight(10f);
-        celdaValor.setMinimumHeight((float) (ReportLayout.GENERAL_DATA_HEIGHT / 5.0));
+        celdaValor.setMinimumHeight((float) alto);
         celdaValor.setBorderColor(Color.GRAY);
         celdaValor.setBorderWidth(0.5f);
         tabla.addCell(celdaEtiqueta);
         tabla.addCell(celdaValor);
+    }
+
+    private static Map<String, String> valoresCampos(ReporteServicio reporte) {
+        Map<String, String> valores = new HashMap<>();
+        valores.put("fecha", reporte.getFecha());
+        valores.put("area", reporte.getArea());
+        valores.put("remision", reporte.getRemision());
+        valores.put("cotizacion", reporte.getCotizacion());
+        valores.put("factura", reporte.getFactura());
+        for (CustomFieldValue value : reporte.getCustomFields()) {
+            valores.put(value.getKey(), value.getValue());
+        }
+        return valores;
+    }
+
+    private static Font crearFuente(TextStyle estilo) {
+        Path archivo = archivoFuenteWindows(estilo);
+        if (archivo != null) {
+            try {
+                BaseFont base = BaseFont.createFont(archivo.toString(), BaseFont.IDENTITY_H,
+                        BaseFont.EMBEDDED);
+                return new Font(base, (float) estilo.getFontSize(), Font.NORMAL,
+                        color(estilo.getColor(), Color.DARK_GRAY));
+            } catch (Exception ignored) {
+                // Se conserva una fuente estándar si la fuente del sistema no está disponible.
+            }
+        }
+        int familia = switch (estilo.getFontFamily().toLowerCase()) {
+            case "times new roman", "times", "serif" -> Font.TIMES_ROMAN;
+            case "courier new", "courier", "monospace" -> Font.COURIER;
+            default -> Font.HELVETICA;
+        };
+        int formato = Font.NORMAL;
+        if (estilo.isBold()) formato |= Font.BOLD;
+        if (estilo.isItalic()) formato |= Font.ITALIC;
+        return new Font(familia, (float) estilo.getFontSize(), formato,
+                color(estilo.getColor(), Color.DARK_GRAY));
+    }
+
+    private static Path archivoFuenteWindows(TextStyle estilo) {
+        String regular;
+        String bold;
+        String italic;
+        String boldItalic;
+        switch (estilo.getFontFamily().toLowerCase()) {
+            case "arial" -> { regular = "arial.ttf"; bold = "arialbd.ttf"; italic = "ariali.ttf"; boldItalic = "arialbi.ttf"; }
+            case "calibri" -> { regular = "calibri.ttf"; bold = "calibrib.ttf"; italic = "calibrii.ttf"; boldItalic = "calibriz.ttf"; }
+            case "times new roman" -> { regular = "times.ttf"; bold = "timesbd.ttf"; italic = "timesi.ttf"; boldItalic = "timesbi.ttf"; }
+            case "verdana" -> { regular = "verdana.ttf"; bold = "verdanab.ttf"; italic = "verdanai.ttf"; boldItalic = "verdanaz.ttf"; }
+            case "tahoma" -> { regular = "tahoma.ttf"; bold = "tahomabd.ttf"; italic = "tahoma.ttf"; boldItalic = "tahomabd.ttf"; }
+            case "segoe ui" -> { regular = "segoeui.ttf"; bold = "segoeuib.ttf"; italic = "segoeuii.ttf"; boldItalic = "segoeuiz.ttf"; }
+            case "courier new" -> { regular = "cour.ttf"; bold = "courbd.ttf"; italic = "couri.ttf"; boldItalic = "courbi.ttf"; }
+            default -> { return null; }
+        }
+        String file = estilo.isBold() && estilo.isItalic() ? boldItalic
+                : estilo.isBold() ? bold : estilo.isItalic() ? italic : regular;
+        String windows = System.getenv("WINDIR");
+        if (windows == null || windows.isBlank()) windows = "C:\\Windows";
+        Path path = Path.of(windows, "Fonts", file);
+        return Files.isRegularFile(path) ? path : null;
+    }
+
+    private static Color color(String hex, Color fallback) {
+        try {
+            String value = hex == null ? "" : hex.trim().replace("#", "");
+            if (value.length() == 8) value = value.substring(0, 6);
+            return new Color(Integer.parseInt(value, 16));
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static int pdfAlignment(String alignment) {
+        return switch (alignment == null ? "CENTER" : alignment) {
+            case "LEFT" -> Element.ALIGN_LEFT;
+            case "JUSTIFY" -> Element.ALIGN_JUSTIFIED;
+            default -> Element.ALIGN_CENTER;
+        };
     }
 
     private static String valorOVacio(String texto) {

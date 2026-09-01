@@ -1,0 +1,33 @@
+# Compilacion de Maven y clases Java
+/target/
+/build-exe/
+*.class
+
+# Paquetes y ejecutables generados por jpackage
+/paquete/
+/paquete-*/
+*.exe
+*.msi
+
+# Dependencias binarias descargadas localmente
+/*.jar
+
+# Resultados y archivos temporales de la aplicacion
+/output/
+/tmp/
+/work/
+*.log
+hs_err_pid*
+replay_pid*
+
+# Configuracion local de editores e IDE
+/.vscode/
+/.idea/
+*.iml
+nbproject/private/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+Desktop.ini
+

@@ -1,5 +1,8 @@
 package com.teosa.app.prototipo;
 
+import com.teosa.app.prototipo.data.HeaderLine;
+import com.teosa.app.prototipo.data.TemplateDefinition;
+
 final class ReportLayout {
 
     static final double PAGE_WIDTH = 612.0;
@@ -55,26 +58,38 @@ final class ReportLayout {
     }
 
     static double estimateDescriptionHeight(String description, double availableWidth) {
+        return estimateDescriptionHeight(description, availableWidth, 11.0);
+    }
+
+    static double estimateDescriptionHeight(String description, double availableWidth,
+                                            double fontSize) {
         if (description == null || description.trim().isEmpty()) {
             return 0;
         }
 
-        int charactersPerLine = Math.max(12, (int) Math.floor(availableWidth / 7.0));
+        double characterWidth = Math.max(4.0, fontSize * 0.58);
+        int charactersPerLine = Math.max(8, (int) Math.floor(availableWidth / characterWidth));
         String[] explicitLines = description.trim().split("\\R", -1);
         int visualLines = 0;
         for (String line : explicitLines) {
             visualLines += Math.max(1,
                     (int) Math.ceil(line.length() / (double) charactersPerLine));
         }
-        return Math.max(PHOTO_CAPTION_HEIGHT, visualLines * 16.0 + 6.0);
+        return Math.max(fontSize * 1.5 + 6.0, visualLines * fontSize * 1.3 + 6.0);
     }
 
     static double estimateCategoryTitleHeight(String title) {
+        return estimateCategoryTitleHeight(title, 14.0);
+    }
+
+    static double estimateCategoryTitleHeight(String title, double fontSize) {
         if (title == null || title.trim().isEmpty()) {
             return CATEGORY_TITLE_HEIGHT;
         }
-        int visualLines = Math.max(1, (int) Math.ceil(title.trim().length() / 55.0));
-        return Math.max(CATEGORY_TITLE_HEIGHT, visualLines * 18.0 + 10.0);
+        int characters = Math.max(20, (int) Math.floor(
+                CONTENT_WIDTH / Math.max(5.0, fontSize * 0.58)));
+        int visualLines = Math.max(1, (int) Math.ceil(title.trim().length() / (double) characters));
+        return Math.max(CATEGORY_TITLE_HEIGHT, visualLines * fontSize * 1.3 + 16.0);
     }
 
     static double photoCellWidth(double requestedWidth) {
@@ -92,12 +107,84 @@ final class ReportLayout {
     }
 
     static double initialPhotoSpace(String equipmentData, String workDescription) {
+        return initialPhotoSpace(equipmentData, workDescription,
+                DOCUMENT_HEADER_HEIGHT, 5);
+    }
+
+    static double initialPhotoSpace(String equipmentData, String workDescription,
+                                    double documentHeaderHeight, int visibleFieldCount) {
         return Math.max(0, CONTENT_HEIGHT
-                - DOCUMENT_HEADER_HEIGHT
-                - GENERAL_DATA_HEIGHT
+                - documentHeaderHeight
+                - generalDataHeight(visibleFieldCount)
                 - REPORT_TOP_SPACING
                 - (SECTION_HEADER_HEIGHT * 2.0)
                 - estimateBodyHeight(equipmentData)
                 - estimateBodyHeight(workDescription));
+    }
+
+    static double initialPhotoSpace(String equipmentData, String workDescription,
+                                    TemplateDefinition template, int visibleFieldCount) {
+        return Math.max(0, CONTENT_HEIGHT
+                - estimateDocumentHeaderHeight(template)
+                - generalDataHeight(visibleFieldCount)
+                - REPORT_TOP_SPACING
+                - estimateSectionHeaderHeight(template.getSection1Title())
+                - estimateBodyHeight(equipmentData)
+                - estimateSectionHeaderHeight(template.getSection2Title())
+                - estimateBodyHeight(workDescription));
+    }
+
+    static double generalDataHeight(int visibleFieldCount) {
+        return Math.max(0, visibleFieldCount) * 27.0;
+    }
+
+    static double estimateDocumentHeaderHeight(TemplateDefinition template) {
+        if (template == null) return DOCUMENT_HEADER_HEIGHT;
+        double textWidth = "STACKED".equals(template.getHeaderLayout())
+                ? CONTENT_WIDTH
+                : estimateHeaderTextWidth(template, "NOMBRE DE LA EMPRESA");
+        double textHeight = 0;
+        for (HeaderLine line : template.getHeaderLines()) {
+            double size = line.getStyle().getFontSize();
+            int characters = Math.max(8, (int) Math.floor(
+                    textWidth / Math.max(4.0, size * 0.58)));
+            String text = line.getText().replace("{empresa}", "NOMBRE DE LA EMPRESA");
+            int visualLines = Math.max(1, (int) Math.ceil(text.length() / (double) characters));
+            textHeight += Math.max(12.0, visualLines * size * 1.25);
+        }
+        double imageHeight = template.getHeaderImageWidth()
+                / template.getHeaderImageAspectRatio();
+        double contentHeight = "STACKED".equals(template.getHeaderLayout())
+                ? imageHeight + template.getHeaderGap() + textHeight
+                : Math.max(imageHeight, textHeight);
+        return contentHeight + 22.0;
+    }
+
+    static double estimateHeaderTextWidth(TemplateDefinition template, String company) {
+        double maximumAvailable = Math.max(120, CONTENT_WIDTH
+                - template.getHeaderImageWidth() - template.getHeaderGap() - 10);
+        if ("JUSTIFY".equals(template.getHeaderTextAlignment())) {
+            return Math.min(330, maximumAvailable);
+        }
+        double estimated = 120;
+        for (HeaderLine line : template.getHeaderLines()) {
+            String text = line.getText().replace("{empresa}",
+                    company == null || company.isBlank() ? "NOMBRE DE LA EMPRESA" : company);
+            estimated = Math.max(estimated,
+                    text.length() * line.getStyle().getFontSize() * 0.58 + 8);
+        }
+        return Math.min(Math.min(330, maximumAvailable), estimated);
+    }
+
+    static double estimateSectionHeaderHeight(String title) {
+        String value = title == null || title.isBlank() ? "—" : title.trim();
+        int lines = Math.max(1, (int) Math.ceil(value.length() / 68.0));
+        return Math.max(SECTION_HEADER_HEIGHT, lines * 14.0 + 12.0);
+    }
+
+    static double estimatePhotoSectionHeight(String title, boolean continuation) {
+        String value = title == null ? "" : title;
+        if (continuation) value += " (CONTINUACIÓN)";
+        return Math.max(PHOTO_SECTION_HEIGHT, estimateSectionHeaderHeight(value));
     }
 }
