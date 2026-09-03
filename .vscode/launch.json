@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Ejecutar Reportes TEOSA",
+            "request": "launch",
+            "mainClass": "com.teosa.app.prototipo/com.teosa.app.prototipo.Launcher",
+            "projectName": "app-prototipo",
+            "preLaunchTask": "Compilar Reportes TEOSA",
+            "modulePaths": [
+                "${workspaceFolder}/build-exe/classes",
+                "${workspaceFolder}/build-exe/input"
+            ],
+            "classPaths": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

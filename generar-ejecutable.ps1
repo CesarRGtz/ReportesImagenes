@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^[A-Za-z0-9 _-]+$')]
-    [string]$OutputDirectory = "paquete"
+    [string]$OutputDirectory = "paquete",
+    [switch]$SoloCompilar
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,12 +50,12 @@ function Resolve-Dependency {
 }
 
 $dependencies = @(
-    Resolve-Dependency "javafx-base-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-base\25\javafx-base-25-win.jar"
-    Resolve-Dependency "javafx-graphics-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-graphics\25\javafx-graphics-25-win.jar"
-    Resolve-Dependency "javafx-controls-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-controls\25\javafx-controls-25-win.jar"
-    Resolve-Dependency "javafx-fxml-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-fxml\25\javafx-fxml-25-win.jar"
-    Resolve-Dependency "openpdf-1.3.39.jar" "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar"
-    Resolve-Dependency "gson-2.14.0.jar" "C:\Users\Usuario\.m2\repository\com\google\code\gson\gson\2.14.0\gson-2.14.0.jar"
+    Resolve-Dependency "javafx-base-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-base\25\javafx-base-25-win.jar" "https://repo.maven.apache.org/maven2/org/openjfx/javafx-base/25/javafx-base-25-win.jar"
+    Resolve-Dependency "javafx-graphics-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-graphics\25\javafx-graphics-25-win.jar" "https://repo.maven.apache.org/maven2/org/openjfx/javafx-graphics/25/javafx-graphics-25-win.jar"
+    Resolve-Dependency "javafx-controls-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-controls\25\javafx-controls-25-win.jar" "https://repo.maven.apache.org/maven2/org/openjfx/javafx-controls/25/javafx-controls-25-win.jar"
+    Resolve-Dependency "javafx-fxml-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-fxml\25\javafx-fxml-25-win.jar" "https://repo.maven.apache.org/maven2/org/openjfx/javafx-fxml/25/javafx-fxml-25-win.jar"
+    Resolve-Dependency "openpdf-1.3.39.jar" "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar" "https://repo.maven.apache.org/maven2/com/github/librepdf/openpdf/1.3.39/openpdf-1.3.39.jar"
+    Resolve-Dependency "gson-2.14.0.jar" "C:\Users\Usuario\.m2\repository\com\google\code\gson\gson\2.14.0\gson-2.14.0.jar" "https://repo.maven.apache.org/maven2/com/google/code/gson/gson/2.14.0/gson-2.14.0.jar"
     Resolve-Dependency "pdfbox-3.0.8.jar" "C:\Users\Usuario\.m2\repository\org\apache\pdfbox\pdfbox\3.0.8\pdfbox-3.0.8.jar" "https://repo.maven.apache.org/maven2/org/apache/pdfbox/pdfbox/3.0.8/pdfbox-3.0.8.jar"
     Resolve-Dependency "pdfbox-io-3.0.8.jar" "C:\Users\Usuario\.m2\repository\org\apache\pdfbox\pdfbox-io\3.0.8\pdfbox-io-3.0.8.jar" "https://repo.maven.apache.org/maven2/org/apache/pdfbox/pdfbox-io/3.0.8/pdfbox-io-3.0.8.jar"
     Resolve-Dependency "fontbox-3.0.8.jar" "C:\Users\Usuario\.m2\repository\org\apache\pdfbox\fontbox\3.0.8\fontbox-3.0.8.jar" "https://repo.maven.apache.org/maven2/org/apache/pdfbox/fontbox/3.0.8/fontbox-3.0.8.jar"
@@ -68,7 +69,11 @@ foreach ($dependency in $dependencies) {
 }
 
 # Solo elimina resultados generados anteriormente dentro de este proyecto.
-foreach ($generatedPath in @($buildRoot, $applicationDir)) {
+$generatedPaths = @($buildRoot)
+if (-not $SoloCompilar) {
+    $generatedPaths += $applicationDir
+}
+foreach ($generatedPath in $generatedPaths) {
     $fullPath = [System.IO.Path]::GetFullPath($generatedPath)
     if (-not $fullPath.StartsWith($projectRoot + "\", [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Ruta de compilación no válida: $fullPath"
@@ -80,7 +85,9 @@ foreach ($generatedPath in @($buildRoot, $applicationDir)) {
 
 New-Item -ItemType Directory -Path $classesDir -Force | Out-Null
 New-Item -ItemType Directory -Path $inputDir -Force | Out-Null
-New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
+if (-not $SoloCompilar) {
+    New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
+}
 
 $modulePath = $dependencies -join ";"
 $sources = Get-ChildItem -LiteralPath (Join-Path $projectRoot "src\main\java") `
@@ -97,6 +104,15 @@ Write-Host "Compilando el proyecto..." -ForegroundColor Cyan
 Copy-Item -Path (Join-Path $projectRoot "src\main\resources\*") `
     -Destination $classesDir -Recurse -Force
 
+foreach ($dependency in $dependencies) {
+    Copy-Item -LiteralPath $dependency -Destination $inputDir -Force
+}
+
+if ($SoloCompilar) {
+    Write-Host "Compilacion para el IDE completada correctamente." -ForegroundColor Green
+    exit 0
+}
+
 Write-Host "Creando el archivo de la aplicación..." -ForegroundColor Cyan
 $applicationJar = Join-Path $inputDir "app-prototipo.jar"
 & (Join-Path $jdkBin "jar.exe") `
@@ -104,10 +120,6 @@ $applicationJar = Join-Path $inputDir "app-prototipo.jar"
     --file $applicationJar `
     --main-class com.teosa.app.prototipo.Launcher `
     -C $classesDir .
-
-foreach ($dependency in $dependencies) {
-    Copy-Item -LiteralPath $dependency -Destination $inputDir -Force
-}
 
 Write-Host "Generando el ejecutable autocontenido..." -ForegroundColor Cyan
 & (Join-Path $jdkBin "jpackage.exe") `

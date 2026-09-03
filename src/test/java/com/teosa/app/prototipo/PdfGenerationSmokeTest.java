@@ -1,3 +1,5 @@
+package com.teosa.app.prototipo;
+
 import com.teosa.app.prototipo.CategoriaFotografica;
 import com.teosa.app.prototipo.FotoEvidencia;
 import com.teosa.app.prototipo.PdfReportGenerator;

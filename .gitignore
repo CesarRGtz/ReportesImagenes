@@ -22,7 +22,10 @@ hs_err_pid*
 replay_pid*
 
 # Configuracion local de editores e IDE
-/.vscode/
+/.vscode/*
+!/.vscode/launch.json
+!/.vscode/settings.json
+!/.vscode/tasks.json
 /.idea/
 *.iml
 nbproject/private/
@@ -31,4 +34,3 @@ nbproject/private/
 .DS_Store
 Thumbs.db
 Desktop.ini
-
