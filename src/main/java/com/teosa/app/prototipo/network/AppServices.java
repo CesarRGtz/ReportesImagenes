@@ -15,6 +15,7 @@ public final class AppServices {
     private HttpReportClient client;
     private LocalReportServer server;
     private DiscoveryAnnouncer announcer;
+    private Thread backgroundThread;
     private volatile boolean running;
     private volatile String status = "Sin conexión";
 
@@ -44,7 +45,7 @@ public final class AppServices {
             setStatus(client.health() ? "Conectado al servidor" : "Buscando servidor...");
         }
         running = true;
-        Thread.ofVirtual().name("teosa-sync").start(this::backgroundLoop);
+        backgroundThread = Thread.ofVirtual().name("teosa-sync").start(this::backgroundLoop);
     }
 
     private void backgroundLoop() {
@@ -132,8 +133,10 @@ public final class AppServices {
 
     public synchronized void close() {
         running = false;
+        if (backgroundThread != null) backgroundThread.interrupt();
         if (announcer != null) announcer.close();
         if (server != null) server.close();
+        backgroundThread = null;
         announcer = null;
         server = null;
         client = null;

@@ -65,6 +65,7 @@ public class PrimaryController {
     @FXML private Button btnImprimir;
     @FXML private Button btnGuardarServidor;
     @FXML private Button btnImportar;
+    @FXML private Button btnConfigurarEquipo;
     @FXML private ScrollPane formScrollPane;
     @FXML private VBox photoControls;
     @FXML private VBox panePreview;
@@ -132,8 +133,10 @@ public class PrimaryController {
             lblConnectionStatus.setText(status);
             lblConnectionStatus.setTextFill(status.startsWith("Sin")
                     ? Color.web("#b45309") : Color.web("#047857"));
+            actualizarBotonConfiguracionEquipo();
         }));
 
+        actualizarBotonConfiguracionEquipo();
         actualizarControlesFotos();
         construirPanelPersonalizacion();
         cargarPlantillas(true);
@@ -142,6 +145,75 @@ public class PrimaryController {
 
     private void onDataChanged() {
         if (!applyingData) actualizarPreview();
+    }
+
+    @FXML
+    private void handleConfigurarEquipo() {
+        AppConfig current = AppServices.get().getConfig();
+        AppConfig.Role currentRole = current == null ? null : current.getRole();
+        Optional<AppConfig.Role> selected = RoleConfigurationDialog.show(
+                btnConfigurarEquipo.getScene().getWindow(), currentRole, false);
+        if (selected.isEmpty() || selected.get() == currentRole) return;
+
+        AppConfig previous = copyConfig(current);
+        AppConfig updated = copyConfig(current);
+        updated.setRole(selected.get());
+        btnConfigurarEquipo.setDisable(true);
+        btnConfigurarEquipo.setText("Aplicando configuración...");
+
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                try {
+                    AppServices.get().initialize(updated);
+                    ConfigStore.save(updated);
+                } catch (Exception changeError) {
+                    try {
+                        AppServices.get().initialize(previous);
+                        ConfigStore.save(previous);
+                    } catch (Exception rollbackError) {
+                        changeError.addSuppressed(rollbackError);
+                    }
+                    throw changeError;
+                }
+                return null;
+            }
+        };
+        task.setOnSucceeded(event -> {
+            btnConfigurarEquipo.setDisable(false);
+            actualizarBotonConfiguracionEquipo();
+            cargarPlantillas();
+            String mode = selected.get() == AppConfig.Role.PRIMARY
+                    ? "servidor principal" : "computadora secundaria";
+            mostrarAlerta(Alert.AlertType.INFORMATION, "Configuración actualizada",
+                    "Este equipo ahora funciona como " + mode + ". El reporte abierto se conservó.");
+        });
+        task.setOnFailed(event -> {
+            btnConfigurarEquipo.setDisable(false);
+            actualizarBotonConfiguracionEquipo();
+            Throwable error = task.getException();
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo cambiar la configuración",
+                    error == null ? "Ocurrió un error inesperado." : error.getMessage());
+        });
+        Thread.ofVirtual().name("teosa-role-change").start(task);
+    }
+
+    private AppConfig copyConfig(AppConfig source) {
+        AppConfig copy = new AppConfig();
+        if (source != null) {
+            copy.setRole(source.getRole());
+            copy.setServerUrl(source.getServerUrl());
+            copy.setServerPort(source.getServerPort());
+        }
+        return copy;
+    }
+
+    private void actualizarBotonConfiguracionEquipo() {
+        if (btnConfigurarEquipo == null) return;
+        AppConfig config = AppServices.get().getConfig();
+        String mode = config != null && config.getRole() == AppConfig.Role.PRIMARY
+                ? "Servidor principal" : "Equipo secundario";
+        btnConfigurarEquipo.setText("⚙  " + mode);
     }
 
     @FXML

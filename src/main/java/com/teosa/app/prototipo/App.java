@@ -6,7 +6,6 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ChoiceDialog;
 import javafx.stage.Stage;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
@@ -28,14 +27,8 @@ public class App extends Application {
     public void start(Stage stage) throws IOException {
         AppConfig config = ConfigStore.load();
         if (config.getRole() == null) {
-            ChoiceDialog<String> dialog = new ChoiceDialog<>("Computadora principal",
-                    "Computadora principal", "Computadora secundaria");
-            dialog.setTitle("Configuración inicial");
-            dialog.setHeaderText("¿Qué función tendrá esta computadora?");
-            dialog.setContentText("La principal almacena los reportes; las secundarias se conectan automáticamente.");
-            String choice = dialog.showAndWait().orElse("Computadora secundaria");
-            config.setRole(choice.equals("Computadora principal")
-                    ? AppConfig.Role.PRIMARY : AppConfig.Role.SECONDARY);
+            config.setRole(RoleConfigurationDialog.show(stage, null, true)
+                    .orElse(AppConfig.Role.SECONDARY));
             ConfigStore.save(config);
         }
         try {
