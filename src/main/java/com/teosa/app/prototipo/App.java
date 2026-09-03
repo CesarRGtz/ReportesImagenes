@@ -6,6 +6,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.DialogPane;
 import javafx.stage.Stage;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
@@ -36,6 +37,7 @@ public class App extends Application {
         } catch (IOException ex) {
             Alert alert = new Alert(Alert.AlertType.ERROR, "No fue posible iniciar los servicios: "
                     + ex.getMessage(), ButtonType.OK);
+            applyTheme(alert.getDialogPane());
             alert.setHeaderText("Problema de conexión");
             alert.showAndWait();
         }
@@ -59,6 +61,13 @@ public class App extends Application {
 
     public static void main(String[] args) {
         launch();
+    }
+
+    static void applyTheme(DialogPane pane) {
+        var stylesheet = App.class.getResource("app.css");
+        if (stylesheet != null && !pane.getStylesheets().contains(stylesheet.toExternalForm())) {
+            pane.getStylesheets().add(stylesheet.toExternalForm());
+        }
     }
 
     @Override

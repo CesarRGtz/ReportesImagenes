@@ -2,6 +2,10 @@ package com.teosa.app.prototipo;
 
 import com.teosa.app.prototipo.data.*;
 import com.teosa.app.prototipo.network.AppServices;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
 import javafx.application.Platform;
 import javafx.animation.AnimationTimer;
 import javafx.collections.FXCollections;
@@ -9,17 +13,23 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.print.PageLayout;
+import javafx.print.PageOrientation;
+import javafx.print.Paper;
 import javafx.print.Printer;
 import javafx.print.PrinterJob;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
@@ -32,6 +42,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -330,14 +341,14 @@ public class PrimaryController {
             if (response.getVersion() > 0) currentVersion = response.getVersion();
             lastSavedFingerprint = savedFingerprint;
             btnGuardarServidor.setDisable(false);
-            btnGuardarServidor.setText("Guardar reporte en el servidor");
+            btnGuardarServidor.setText("Guardar en servidor");
             mostrarAlerta(Alert.AlertType.INFORMATION,
                     response.isQueued() ? "Guardado pendiente" : "Reporte guardado",
                     response.getMessage());
         });
         task.setOnFailed(event -> {
             btnGuardarServidor.setDisable(false);
-            btnGuardarServidor.setText("Guardar reporte en el servidor");
+            btnGuardarServidor.setText("Guardar en servidor");
             mostrarAlerta(Alert.AlertType.ERROR, "No se pudo guardar",
                     task.getException().getMessage());
         });
@@ -347,6 +358,7 @@ public class PrimaryController {
     private boolean guardarAntesDePdfSiCorresponde() {
         if (!tieneCambios()) return true;
         Alert question = new Alert(Alert.AlertType.CONFIRMATION);
+        aplicarTema(question);
         question.setTitle("Cambios sin guardar");
         question.setHeaderText("Este reporte tiene cambios sin guardar");
         question.setContentText("¿Deseas guardar una nueva versión antes de generar el PDF?");
@@ -373,6 +385,7 @@ public class PrimaryController {
     @FXML
     private void handleImportarReporte() {
         Dialog<ButtonType> dialog = new Dialog<>();
+        aplicarTema(dialog);
         dialog.setTitle("Importar reporte e historial");
         dialog.setHeaderText("Selecciona un reporte y una versión");
         dialog.initOwner(btnImportar.getScene().getWindow());
@@ -382,6 +395,7 @@ public class PrimaryController {
         TextField search = new TextField();
         search.setPromptText("Buscar por cliente, fecha, área, remisión o autor");
         Button searchButton = new Button("Buscar");
+        searchButton.getStyleClass().add("button-primary");
         HBox searchRow = new HBox(8, search, searchButton);
         HBox.setHgrow(search, Priority.ALWAYS);
 
@@ -408,8 +422,8 @@ public class PrimaryController {
 
         Button deleteVersion = new Button("Eliminar versión");
         Button deleteReport = new Button("Eliminar reporte completo");
-        deleteVersion.setStyle("-fx-text-fill: #b91c1c;");
-        deleteReport.setStyle("-fx-text-fill: #b91c1c;");
+        deleteVersion.getStyleClass().add("button-danger");
+        deleteReport.getStyleClass().add("button-danger");
         VBox right = new VBox(8, new Label("Versiones"), versions,
                 new HBox(8, deleteVersion, deleteReport));
         VBox.setVgrow(versions, Priority.ALWAYS);
@@ -534,6 +548,7 @@ public class PrimaryController {
 
     private boolean confirmar(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, message, ButtonType.YES, ButtonType.NO);
+        aplicarTema(alert);
         alert.setTitle(title);
         alert.setHeaderText(null);
         return alert.showAndWait().orElse(ButtonType.NO) == ButtonType.YES;
@@ -610,10 +625,12 @@ public class PrimaryController {
 
         Label templateTitle = new Label("Guardar configuración como plantilla");
         templateTitle.setFont(Font.font("System", FontWeight.BOLD, 11));
+        templateTitle.getStyleClass().add("section-title");
         TextField templateName = new TextField(activeTemplate.getName());
         templateName.setPromptText("Nombre de la plantilla");
         Button saveTemplate = new Button("Guardar plantilla");
         saveTemplate.setMaxWidth(Double.MAX_VALUE);
+        saveTemplate.getStyleClass().add("button-primary");
         saveTemplate.disableProperty().bind(templateName.textProperty().isEmpty());
         saveTemplate.setOnAction(event -> {
             TemplateDefinition templateToSave = copyTemplate(activeTemplate);
@@ -634,8 +651,7 @@ public class PrimaryController {
         Button deleteTemplate = new Button("Eliminar plantilla guardada");
         deleteTemplate.setMaxWidth(Double.MAX_VALUE);
         deleteTemplate.setDisable(isDefaultTemplateName(activeTemplate.getName()));
-        deleteTemplate.setStyle("-fx-background-color: #fff1f2; -fx-text-fill: #b91c1c; "
-                + "-fx-border-color: #fca5a5; -fx-border-radius: 4px;");
+        deleteTemplate.getStyleClass().add("button-danger");
         deleteTemplate.setOnAction(event -> eliminarPlantillaGuardada());
 
         VBox fieldsEditor = new VBox(7);
@@ -667,7 +683,7 @@ public class PrimaryController {
             HBox actions = new HBox(5, background, visible, up, down);
             if (definition.isCustom()) {
                 Button remove = new Button("Eliminar");
-                remove.setStyle("-fx-text-fill: #b91c1c;");
+                remove.getStyleClass().add("button-danger");
                 remove.setOnAction(event -> {
                     activeTemplate.getFields().remove(definition.getKey());
                     customValueControls.remove(definition.getKey());
@@ -679,12 +695,12 @@ public class PrimaryController {
                 actions.getChildren().add(remove);
             }
             VBox card = new VBox(5, label, actions);
-            card.setPadding(new Insets(6));
-            card.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #e2e8f0;");
+            card.getStyleClass().add("editor-card");
             fieldsEditor.getChildren().add(card);
         }
         Button addField = new Button("Agregar campo personalizado");
         addField.setMaxWidth(Double.MAX_VALUE);
+        addField.getStyleClass().add("button-secondary");
         addField.setOnAction(event -> {
             String key = "custom-" + UUID.randomUUID();
             activeTemplate.getFields().put(key, new FieldDefinition(
@@ -714,6 +730,7 @@ public class PrimaryController {
         Label logoName = new Label("Imagen: " + activeTemplate.getHeaderImageFileName());
         logoName.setWrapText(true);
         Button chooseLogo = new Button("Elegir otra imagen");
+        chooseLogo.getStyleClass().add("button-secondary");
         chooseLogo.setOnAction(event -> {
             FileChooser chooser = new FileChooser();
             chooser.setTitle("Seleccionar imagen del encabezado");
@@ -782,6 +799,7 @@ public class PrimaryController {
                 new Label("Alineación del texto:"), headerAlignment);
         for (HeaderLine line : activeTemplate.getHeaderLines()) headerEditor.getChildren().add(headerLineEditor(line));
         Button addHeaderLine = new Button("Agregar línea al encabezado");
+        addHeaderLine.getStyleClass().add("button-secondary");
         addHeaderLine.setOnAction(event -> {
             activeTemplate.getHeaderLines().add(new HeaderLine("Nueva línea", 12, false, false, "#5b7699"));
             construirPanelPersonalizacion();
@@ -821,6 +839,7 @@ public class PrimaryController {
             return;
         }
         Alert first = new Alert(Alert.AlertType.CONFIRMATION);
+        aplicarTema(first);
         first.setTitle("Eliminar plantilla");
         first.setHeaderText("¿Deseas eliminar la plantilla '" + templateName + "'?");
         first.setContentText("La plantilla dejará de aparecer en la lista de todas las computadoras.");
@@ -828,6 +847,7 @@ public class PrimaryController {
         if (first.showAndWait().orElse(ButtonType.CANCEL) != ButtonType.YES) return;
 
         Alert second = new Alert(Alert.AlertType.WARNING);
+        aplicarTema(second);
         second.setTitle("Confirmación final");
         second.setHeaderText("La plantilla guardada se eliminará definitivamente");
         second.setContentText("Los reportes y versiones ya guardados no se eliminarán. "
@@ -869,15 +889,14 @@ public class PrimaryController {
         text.textProperty().addListener((o,a,b) -> { line.setText(b); actualizarPreview(); });
         VBox styles = textStyleEditor(line.getStyle(), this::actualizarPreview);
         Button remove = new Button("Eliminar línea");
-        remove.setStyle("-fx-text-fill: #b91c1c;");
+        remove.getStyleClass().add("button-danger");
         remove.setOnAction(event -> {
             activeTemplate.getHeaderLines().remove(line);
             construirPanelPersonalizacion();
             actualizarPreview();
         });
         VBox result = new VBox(5, text, styles, remove);
-        result.setPadding(new Insets(6));
-        result.setStyle("-fx-border-color: #e2e8f0;");
+        result.getStyleClass().add("editor-card");
         return result;
     }
 
@@ -931,7 +950,7 @@ public class PrimaryController {
             if (!definition.isVisible()) continue;
             if (definition.isCustom()) {
                 Label label = new Label(definition.getLabel());
-                label.setTextFill(Color.web("#4a5568"));
+                label.getStyleClass().add("field-label");
                 TextField value = customValueControls.computeIfAbsent(definition.getKey(), key -> {
                     TextField field = new TextField();
                     field.textProperty().addListener((o,a,b) -> onDataChanged());
@@ -1062,25 +1081,130 @@ public class PrimaryController {
 
     @FXML
     private void handleImprimir() {
-        Printer printer = Printer.getDefaultPrinter();
-        if (printer == null) {
-            mostrarAlerta(Alert.AlertType.ERROR, "Sin impresora",
-                    "No se detectó ninguna impresora predeterminada.");
+        String cliente = valorSinNulo(txtCliente.getText()).trim();
+        if (cliente.isEmpty()) {
+            mostrarAlerta(Alert.AlertType.WARNING, "Falta información",
+                    "Debes capturar el nombre del cliente/empresa.");
             return;
         }
+        if (!guardarAntesDePdfSiCorresponde()) return;
 
-        PrinterJob job = PrinterJob.createPrinterJob(printer);
-        if (job != null && job.showPrintDialog(btnImprimir.getScene().getWindow())) {
-            boolean printed = job.printPage(panePreview);
-            if (printed) {
-                job.endJob();
-                mostrarAlerta(Alert.AlertType.INFORMATION, "Impresión exitosa",
-                        "El documento se envió a la impresora.");
-            } else {
-                mostrarAlerta(Alert.AlertType.ERROR, "Error de impresión",
-                        "No se pudo completar la impresión.");
+        Path temporaryPdf = null;
+        try {
+            temporaryPdf = Files.createTempFile("reporte-teosa-", ".pdf");
+            temporaryPdf.toFile().deleteOnExit();
+            PdfReportGenerator.generar(temporaryPdf.toFile(), crearReporteActual(), activeTemplate);
+            configurarCachePdfBox();
+
+            PrinterJob printJob = PrinterJob.createPrinterJob();
+            if (printJob == null) {
+                throw new IllegalStateException("Windows no reportó ninguna impresora disponible.");
+            }
+            printJob.getJobSettings().setJobName("Reporte TEOSA - " + cliente);
+            if (!printJob.showPrintDialog(btnImprimir.getScene().getWindow())) {
+                return;
+            }
+            if (esImpresoraPdf(printJob.getPrinter())) {
+                guardarPdfDeImpresion(temporaryPdf, cliente);
+                printJob.cancelJob();
+                return;
+            }
+
+            try (PDDocument document = Loader.loadPDF(temporaryPdf.toFile())) {
+                imprimirPaginasPdf(printJob, document);
+            }
+            if (!printJob.endJob()) {
+                throw new IllegalStateException("La impresora no confirmó la recepción del documento.");
+            }
+            mostrarAlerta(Alert.AlertType.INFORMATION, "Documento enviado a impresión",
+                    "El PDF del reporte se envió correctamente a la impresora seleccionada.");
+        } catch (Exception ex) {
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo imprimir", ex.getMessage());
+        } finally {
+            if (temporaryPdf != null) {
+                try {
+                    Files.deleteIfExists(temporaryPdf);
+                } catch (Exception ignored) {
+                    // Windows puede mantener el archivo ocupado brevemente; deleteOnExit queda como respaldo.
+                }
             }
         }
+    }
+
+    private boolean esImpresoraPdf(Printer printer) {
+        return printer != null && printer.getName() != null
+                && printer.getName().toLowerCase(Locale.ROOT).contains("pdf");
+    }
+
+    private void guardarPdfDeImpresion(Path sourcePdf, String cliente) throws Exception {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Guardar impresión en PDF");
+        chooser.setInitialFileName("Reporte_" + cliente.replaceAll("[\\\\/:*?\"<>|\\s]+", "_")
+                + ".pdf");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Archivo PDF", "*.pdf"));
+        File destination = chooser.showSaveDialog(btnImprimir.getScene().getWindow());
+        if (destination == null) {
+            return;
+        }
+        Files.copy(sourcePdf, destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        mostrarAlerta(Alert.AlertType.INFORMATION, "Impresión guardada en PDF",
+                "Se guardó exactamente el mismo documento, sin aplicar otra escala ni márgenes.");
+    }
+
+    private void configurarCachePdfBox() throws Exception {
+        Path cacheDirectory = Path.of(System.getProperty("java.io.tmpdir"),
+                "reportes-teosa-pdfbox-cache");
+        Files.createDirectories(cacheDirectory);
+        System.setProperty("pdfbox.fontcache", cacheDirectory.toString());
+    }
+
+    private void imprimirPaginasPdf(PrinterJob printJob, PDDocument document) throws Exception {
+        PDFRenderer renderer = new PDFRenderer(document);
+        PageLayout pageLayout = printJob.getPrinter().createPageLayout(
+                Paper.NA_LETTER, PageOrientation.PORTRAIT, Printer.MarginType.HARDWARE_MINIMUM);
+        printJob.getJobSettings().setPageLayout(pageLayout);
+        double printableWidth = pageLayout.getPrintableWidth();
+        double printableHeight = pageLayout.getPrintableHeight();
+        double paperWidth = pageLayout.getPaper().getWidth();
+        double paperHeight = pageLayout.getPaper().getHeight();
+
+        for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
+            BufferedImage renderedPage = renderer.renderImageWithDPI(pageIndex, 200, ImageType.RGB);
+            ImageView pageImage = new ImageView(convertirAImagenFx(renderedPage));
+            pageImage.setPreserveRatio(true);
+            pageImage.setSmooth(true);
+            pageImage.setFitWidth(paperWidth);
+            pageImage.setFitHeight(paperHeight);
+            pageImage.setManaged(false);
+            pageImage.relocate(-pageLayout.getLeftMargin(), -pageLayout.getTopMargin());
+
+            Pane printablePage = new Pane(pageImage);
+            printablePage.setStyle("-fx-background-color: white;");
+            printablePage.setMinSize(printableWidth, printableHeight);
+            printablePage.setPrefSize(printableWidth, printableHeight);
+            printablePage.setMaxSize(printableWidth, printableHeight);
+            printablePage.resize(printableWidth, printableHeight);
+            printablePage.setClip(new Rectangle(printableWidth, printableHeight));
+            printablePage.applyCss();
+            printablePage.layout();
+
+            if (!printJob.printPage(pageLayout, printablePage)) {
+                printJob.cancelJob();
+                throw new IllegalStateException("No se pudo preparar la página " + (pageIndex + 1)
+                        + " para impresión.");
+            }
+        }
+    }
+
+    private WritableImage convertirAImagenFx(BufferedImage source) {
+        int width = source.getWidth();
+        int height = source.getHeight();
+        int[] pixels = source.getRGB(0, 0, width, height, null, 0, width);
+        WritableImage result = new WritableImage(width, height);
+        result.getPixelWriter().setPixels(0, 0, width, height,
+                PixelFormat.getIntArgbInstance(), pixels, 0, width);
+        return result;
     }
 
     private void actualizarPreview() {
@@ -1182,16 +1306,14 @@ public class PrimaryController {
         for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
             CategoriaFotografica categoria = categorias.get(categoriaIndex);
             VBox tarjetaCategoria = new VBox(8);
-            tarjetaCategoria.setPadding(new Insets(10));
-            tarjetaCategoria.setStyle("-fx-background-color: #ffffff; -fx-border-color: #cbd5e0; "
-                    + "-fx-border-radius: 5px; -fx-background-radius: 5px;");
+            tarjetaCategoria.getStyleClass().add("category-card");
 
             Label tituloControl = new Label("Categoría " + (categoriaIndex + 1));
             tituloControl.setFont(Font.font("System", FontWeight.BOLD, 11));
-            tituloControl.setTextFill(Color.web("#2b6cb0"));
+            tituloControl.getStyleClass().add("category-index");
 
             Button eliminarCategoria = new Button("Eliminar categoría");
-            eliminarCategoria.setStyle("-fx-text-fill: #b91c1c;");
+            eliminarCategoria.getStyleClass().add("button-danger");
             eliminarCategoria.setOnAction(event -> {
                 categorias.remove(categoria);
                 actualizarControlesFotos();
@@ -1213,6 +1335,7 @@ public class PrimaryController {
 
             Button agregarFotos = new Button("Agregar imágenes a esta categoría");
             agregarFotos.setMaxWidth(Double.MAX_VALUE);
+            agregarFotos.getStyleClass().add("button-secondary");
             agregarFotos.setOnAction(event -> seleccionarFotosParaCategoria(categoria));
             tarjetaCategoria.getChildren().addAll(encabezadoControl, tituloCategoria, agregarFotos);
 
@@ -1241,7 +1364,7 @@ public class PrimaryController {
                 });
 
                 Button eliminarFoto = new Button("Eliminar");
-                eliminarFoto.setStyle("-fx-text-fill: #b91c1c;");
+                eliminarFoto.getStyleClass().add("button-danger");
                 eliminarFoto.setOnAction(event -> {
                     categoria.getFotografias().remove(foto);
                     actualizarControlesFotos();
@@ -1277,8 +1400,7 @@ public class PrimaryController {
                 });
 
                 VBox controlesFoto = new VBox(5, filaAncho, accionesFoto, detalle);
-                controlesFoto.setPadding(new Insets(7, 0, 7, 8));
-                controlesFoto.setStyle("-fx-border-color: transparent transparent #e2e8f0 transparent;");
+                controlesFoto.getStyleClass().add("photo-editor-row");
                 tarjetaCategoria.getChildren().add(controlesFoto);
             }
 
@@ -1354,6 +1476,7 @@ public class PrimaryController {
         });
 
         Dialog<ButtonType> dialog = new Dialog<>();
+        aplicarTema(dialog);
         dialog.setTitle("Recortar imagen");
         dialog.setHeaderText("Arrastra sobre la fotografía para elegir el área que deseas conservar");
         ButtonType aplicar = new ButtonType("Aplicar recorte", ButtonBar.ButtonData.OK_DONE);
@@ -1887,10 +2010,15 @@ public class PrimaryController {
 
     private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
         Alert alert = new Alert(tipo);
+        aplicarTema(alert);
         alert.setTitle(titulo);
         alert.setHeaderText(null);
         alert.setContentText(mensaje);
         alert.showAndWait();
+    }
+
+    private void aplicarTema(Dialog<?> dialog) {
+        App.applyTheme(dialog.getDialogPane());
     }
 
     private static class PreviewPageState {

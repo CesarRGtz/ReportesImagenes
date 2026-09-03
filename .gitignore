@@ -6,6 +6,7 @@
 # Paquetes y ejecutables generados por jpackage
 /paquete/
 /paquete-*/
+/ejecutable-*/
 *.exe
 *.msi
 

@@ -29,7 +29,8 @@ foreach ($tool in @("javac.exe", "jar.exe", "jpackage.exe")) {
 function Resolve-Dependency {
     param(
         [Parameter(Mandatory = $true)][string]$FileName,
-        [Parameter(Mandatory = $true)][string]$MavenPath
+        [Parameter(Mandatory = $true)][string]$MavenPath,
+        [string]$DownloadUri
     )
 
     $localPath = Join-Path $projectRoot $FileName
@@ -38,6 +39,11 @@ function Resolve-Dependency {
     }
     if (Test-Path -LiteralPath $MavenPath) {
         return $MavenPath
+    }
+    if (-not [string]::IsNullOrWhiteSpace($DownloadUri)) {
+        Write-Host "Descargando $FileName..." -ForegroundColor Cyan
+        Invoke-WebRequest -Uri $DownloadUri -OutFile $localPath
+        return $localPath
     }
     throw "No se encontró la dependencia $FileName junto al proyecto ni en la caché de Maven."
 }
@@ -49,6 +55,10 @@ $dependencies = @(
     Resolve-Dependency "javafx-fxml-25-win.jar" "C:\Users\Usuario\.m2\repository\org\openjfx\javafx-fxml\25\javafx-fxml-25-win.jar"
     Resolve-Dependency "openpdf-1.3.39.jar" "C:\Users\Usuario\.m2\repository\com\github\librepdf\openpdf\1.3.39\openpdf-1.3.39.jar"
     Resolve-Dependency "gson-2.14.0.jar" "C:\Users\Usuario\.m2\repository\com\google\code\gson\gson\2.14.0\gson-2.14.0.jar"
+    Resolve-Dependency "pdfbox-3.0.8.jar" "C:\Users\Usuario\.m2\repository\org\apache\pdfbox\pdfbox\3.0.8\pdfbox-3.0.8.jar" "https://repo.maven.apache.org/maven2/org/apache/pdfbox/pdfbox/3.0.8/pdfbox-3.0.8.jar"
+    Resolve-Dependency "pdfbox-io-3.0.8.jar" "C:\Users\Usuario\.m2\repository\org\apache\pdfbox\pdfbox-io\3.0.8\pdfbox-io-3.0.8.jar" "https://repo.maven.apache.org/maven2/org/apache/pdfbox/pdfbox-io/3.0.8/pdfbox-io-3.0.8.jar"
+    Resolve-Dependency "fontbox-3.0.8.jar" "C:\Users\Usuario\.m2\repository\org\apache\pdfbox\fontbox\3.0.8\fontbox-3.0.8.jar" "https://repo.maven.apache.org/maven2/org/apache/pdfbox/fontbox/3.0.8/fontbox-3.0.8.jar"
+    Resolve-Dependency "commons-logging-1.3.5.jar" "C:\Users\Usuario\.m2\repository\commons-logging\commons-logging\1.3.5\commons-logging-1.3.5.jar" "https://repo.maven.apache.org/maven2/commons-logging/commons-logging/1.3.5/commons-logging-1.3.5.jar"
 )
 
 foreach ($dependency in $dependencies) {

@@ -36,8 +36,9 @@ public final class RoleConfigurationDialog {
     public static Optional<AppConfig.Role> show(
             Window owner, AppConfig.Role currentRole, boolean initialSetup) {
         Dialog<AppConfig.Role> dialog = new Dialog<>();
+        App.applyTheme(dialog.getDialogPane());
         dialog.setTitle(initialSetup ? "Configuración inicial" : "Configuración del equipo");
-        if (owner != null) dialog.initOwner(owner);
+        if (owner != null && owner.getScene() != null) dialog.initOwner(owner);
         dialog.initModality(Modality.APPLICATION_MODAL);
 
         ButtonType confirm = new ButtonType(

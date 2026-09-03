@@ -10,128 +10,131 @@
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.TitledPane?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="700.0" prefWidth="1200.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.teosa.app.prototipo.PrimaryController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="700.0" prefWidth="1200.0" styleClass="app-shell" stylesheets="@app.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.teosa.app.prototipo.PrimaryController">
 
    <top>
-      <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: #ffffff; -fx-border-color: transparent transparent #e2e8f0 transparent; -fx-padding: 8px 14px;">
-         <Label text="Reportes TEOSA" textFill="#334155">
-            <font><Font name="System Bold" size="12.0" /></font>
-         </Label>
+      <HBox alignment="CENTER_LEFT" spacing="9.0" styleClass="app-topbar">
+         <Label styleClass="brand-mark" text="T" />
+         <VBox spacing="-1.0">
+            <Label styleClass="brand-title" text="Reportes TEOSA" />
+            <Label styleClass="brand-subtitle" text="Gestión de servicios y evidencia" />
+         </VBox>
          <Region HBox.hgrow="ALWAYS" />
-         <Button fx:id="btnConfigurarEquipo" onAction="#handleConfigurarEquipo" style="-fx-background-color: #f8fafc; -fx-text-fill: #475569; -fx-border-color: #dbe3ee; -fx-border-radius: 6px; -fx-background-radius: 6px; -fx-cursor: hand; -fx-padding: 5px 10px;" text="Configuración del equipo" />
+         <Button fx:id="btnConfigurarEquipo" onAction="#handleConfigurarEquipo" styleClass="mode-button" text="Configuración del equipo" />
       </HBox>
    </top>
 
    <center>
-      <HBox prefHeight="100.0" prefWidth="200.0" style="-fx-background-color: #f7fafc;" BorderPane.alignment="CENTER">
+      <HBox prefHeight="100.0" prefWidth="200.0" styleClass="workspace" BorderPane.alignment="CENTER">
 
          <!-- Columna Izquierda: Formulario -->
-         <ScrollPane fx:id="formScrollPane" fitToWidth="true" hbarPolicy="NEVER" prefWidth="380.0" style="-fx-background-color: transparent; -fx-background: #f7fafc;" vbarPolicy="AS_NEEDED">
+         <ScrollPane fx:id="formScrollPane" fitToWidth="true" hbarPolicy="NEVER" prefWidth="390.0" styleClass="form-scroll" vbarPolicy="AS_NEEDED">
             <content>
-               <VBox spacing="10.0">
-                  <padding>
-                     <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-                  </padding>
+               <VBox styleClass="sidebar-content">
                   <children>
-               <Label text="TEOSA - Sistema de Reportes" textFill="#1a202c" wrapText="true">
-                  <font>
-                     <Font name="System Bold" size="13.0" />
-                  </font>
-                  <VBox.margin>
-                     <Insets bottom="5.0" />
-                  </VBox.margin>
-               </Label>
+               <VBox spacing="4.0" styleClass="sidebar-heading">
+                  <Label styleClass="sidebar-title" text="Crear reporte" />
+                  <Label styleClass="section-help" text="Completa los datos y organiza la evidencia fotográfica." wrapText="true" />
+               </VBox>
 
-               <Label fx:id="lblConnectionStatus" text="Conectando..." textFill="#64748b" wrapText="true" />
+               <Label fx:id="lblConnectionStatus" styleClass="connection-status" text="Conectando..." wrapText="true" />
                <HBox spacing="8.0">
-                  <Button fx:id="btnImportar" maxWidth="Infinity" onAction="#handleImportarReporte" style="-fx-background-color: #ffffff; -fx-text-fill: #1e3a5f; -fx-border-color: #93c5fd; -fx-border-radius: 4px; -fx-cursor: hand;" text="Importar / Historial" HBox.hgrow="ALWAYS" />
-                  <Button onAction="#handleNuevoReporte" style="-fx-background-color: #ffffff; -fx-text-fill: #475569; -fx-border-color: #cbd5e0; -fx-border-radius: 4px;" text="Nuevo" />
+                  <Button fx:id="btnImportar" maxWidth="Infinity" onAction="#handleImportarReporte" styleClass="button-secondary" text="Importar / Historial" HBox.hgrow="ALWAYS" />
+                  <Button onAction="#handleNuevoReporte" text="Nuevo" />
                </HBox>
 
-               <Label text="Plantilla:" textFill="#4a5568" />
+               <VBox styleClass="form-card">
+               <Label styleClass="section-title" text="Plantilla y formato" />
+               <Label styleClass="section-help" text="Aplica una configuración guardada o personaliza este documento." wrapText="true" />
+               <Label styleClass="field-label" text="Plantilla" />
                <ComboBox fx:id="cmbPlantillas" maxWidth="Infinity" promptText="Formato predeterminado" />
-               <Button maxWidth="Infinity" onAction="#handleTogglePersonalizacion" style="-fx-background-color: #ffffff; -fx-text-fill: #4338ca; -fx-border-color: #a5b4fc; -fx-border-radius: 4px; -fx-cursor: hand;" text="Personalizar formato" />
+               <Button maxWidth="Infinity" onAction="#handleTogglePersonalizacion" styleClass="button-secondary" text="Personalizar formato" />
+               </VBox>
 
-               <Label text="Datos del Servicio" textFill="#2b6cb0">
-                  <font>
-                     <Font name="System Bold" size="12.0" />
-                  </font>
-               </Label>
+               <VBox styleClass="form-card">
+               <Label styleClass="section-title" text="Datos del servicio" />
+               <Label styleClass="section-help" text="Información que aparecerá en el encabezado y la tabla del reporte." wrapText="true" />
 
-               <Label text="Cliente / Empresa:" textFill="#4a5568" />
-               <TextField fx:id="txtCliente" promptText="Ej. CARGILL" style="-fx-background-color: white; -fx-border-color: #cbd5e0; -fx-border-radius: 4px;" />
+               <Label styleClass="field-label" text="Cliente / Empresa" />
+               <TextField fx:id="txtCliente" promptText="Ej. CARGILL" />
 
                <VBox fx:id="serviceFieldsContainer" spacing="8.0">
-               <Label fx:id="lblFecha" text="Fecha de Recepción de Equipo:" textFill="#4a5568" />
+               <Label fx:id="lblFecha" styleClass="field-label" text="Fecha de Recepción de Equipo:" />
                <DatePicker fx:id="dpFecha" maxWidth="Infinity" />
 
-               <Label fx:id="lblArea" text="Área:" textFill="#4a5568" />
-               <TextField fx:id="txtArea" promptText="Ej. PLANTA" style="-fx-background-color: white; -fx-border-color: #cbd5e0; -fx-border-radius: 4px;" />
+               <Label fx:id="lblArea" styleClass="field-label" text="Área:" />
+               <TextField fx:id="txtArea" promptText="Ej. PLANTA" />
 
-               <Label fx:id="lblRemision" text="Remisión:" textFill="#4a5568" />
-               <TextField fx:id="txtRemision" promptText="Número de Remisión" style="-fx-background-color: white; -fx-border-color: #cbd5e0; -fx-border-radius: 4px;" />
+               <Label fx:id="lblRemision" styleClass="field-label" text="Remisión:" />
+               <TextField fx:id="txtRemision" promptText="Número de Remisión" />
 
-               <Label fx:id="lblCotizacion" text="Cotización:" textFill="#4a5568" />
-               <TextField fx:id="txtCotizacion" promptText="Cotización" style="-fx-background-color: white; -fx-border-color: #cbd5e0; -fx-border-radius: 4px;" />
+               <Label fx:id="lblCotizacion" styleClass="field-label" text="Cotización:" />
+               <TextField fx:id="txtCotizacion" promptText="Cotización" />
 
-               <Label fx:id="lblFactura" text="Factura:" textFill="#4a5568" />
-               <TextField fx:id="txtFactura" promptText="Factura (opcional)" style="-fx-background-color: white; -fx-border-color: #cbd5e0; -fx-border-radius: 4px;" />
+               <Label fx:id="lblFactura" styleClass="field-label" text="Factura:" />
+               <TextField fx:id="txtFactura" promptText="Factura (opcional)" />
 
                <VBox fx:id="customFieldsContainer" spacing="8.0" />
                </VBox>
 
-               <Label text="Datos del Equipo:" textFill="#4a5568" />
-               <TextArea fx:id="txtDatosEquipo" prefHeight="50.0" promptText="Marca, modelo, serie..." style="-fx-background-color: white; -fx-border-color: #cbd5e0;" wrapText="true" />
+               <Label styleClass="field-label" text="Datos del equipo" />
+               <TextArea fx:id="txtDatosEquipo" prefHeight="62.0" promptText="Marca, modelo, serie..." wrapText="true" />
 
-               <Label text="Descripción del Trabajo:" textFill="#4a5568" />
-               <TextArea fx:id="txtDescripcion" prefHeight="50.0" promptText="Descripción del trabajo realizado..." style="-fx-background-color: white; -fx-border-color: #cbd5e0;" wrapText="true" />
+               <Label styleClass="field-label" text="Descripción del trabajo" />
+               <TextArea fx:id="txtDescripcion" prefHeight="70.0" promptText="Descripción del trabajo realizado..." wrapText="true" />
+               </VBox>
 
-               <Label text="Evidencia Fotográfica:" textFill="#4a5568" />
-               <Button maxWidth="Infinity" onAction="#handleAgregarCategoria" style="-fx-background-color: #dbeafe; -fx-text-fill: #1e3a5f; -fx-border-color: #93c5fd; -fx-border-radius: 4px; -fx-cursor: hand;" text="Agregar categoría / actividad" />
-               <Button maxWidth="Infinity" onAction="#handleAgregarFoto" style="-fx-background-color: #edf2f7; -fx-text-fill: #2d3748; -fx-border-color: #cbd5e0; -fx-border-radius: 4px; -fx-cursor: hand;" text="Agregar fotos a la última categoría" />
+               <VBox styleClass="form-card">
+               <Label styleClass="section-title" text="Evidencia fotográfica" />
+               <Label styleClass="section-help" text="Organiza las imágenes por actividad y agrega comentarios cuando sea necesario." wrapText="true" />
+               <Button maxWidth="Infinity" onAction="#handleAgregarCategoria" styleClass="button-primary" text="Agregar categoría / actividad" />
+               <Button maxWidth="Infinity" onAction="#handleAgregarFoto" text="Agregar fotos a la última categoría" />
                <VBox fx:id="photoControls" spacing="8.0" />
-
-               <VBox prefHeight="5.0" />
-
-               <Button fx:id="btnGenerarPDF" maxWidth="Infinity" onAction="#handleClicAccion" style="-fx-background-color: #2b6cb0; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px; -fx-background-radius: 4px; -fx-cursor: hand;" text="Generar PDF Profesional" />
-
-               <Button fx:id="btnGuardarServidor" maxWidth="Infinity" onAction="#handleGuardarServidor" style="-fx-background-color: #4f46e5; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px; -fx-background-radius: 4px; -fx-cursor: hand;" text="Guardar reporte en el servidor" />
-               
-               <Button fx:id="btnImprimir" maxWidth="Infinity" onAction="#handleImprimir" style="-fx-background-color: #319795; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8px; -fx-background-radius: 4px; -fx-cursor: hand;" text="Imprimir Documento" />
+               </VBox>
                   </children>
                </VBox>
             </content>
          </ScrollPane>
 
          <!-- Columna Derecha: Previsualización tipo Word -->
-         <VBox HBox.hgrow="ALWAYS" spacing="10.0" style="-fx-background-color: #cbd5e0;">
-            <padding>
-               <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
-            </padding>
+         <VBox HBox.hgrow="ALWAYS" styleClass="preview-panel">
             <children>
-               <Label text="Previsualización de Páginas (Estilo Word)" textFill="#2d3748">
-                  <font>
-                     <Font name="System Bold" size="12.0" />
-                  </font>
-               </Label>
-               <ScrollPane fitToWidth="true" style="-fx-background-color: transparent; -fx-background: #cbd5e0;" VBox.vgrow="ALWAYS">
-                  <content>
-                     <VBox alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: transparent;">
-                        <padding>
-                           <Insets bottom="30.0" top="10.0" />
-                        </padding>
-                        <children>
-                           <!-- Aquí se inyectan dinámicamente las páginas tipo Word -->
-                           <VBox fx:id="panePreview" alignment="TOP_CENTER" spacing="20.0" style="-fx-background-color: transparent;" />
-                        </children>
-                     </VBox>
-                  </content>
-               </ScrollPane>
+               <HBox alignment="CENTER_LEFT" spacing="8.0">
+                  <Label styleClass="preview-heading" text="Previsualización del documento" />
+                  <Label styleClass="preview-badge" text="PDF" />
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Label styleClass="muted-label" text="Los cambios se actualizan automáticamente" />
+               </HBox>
+               <StackPane VBox.vgrow="ALWAYS">
+                  <ScrollPane fitToWidth="true" styleClass="preview-scroll">
+                     <content>
+                        <VBox alignment="TOP_CENTER" spacing="20.0" styleClass="preview-canvas">
+                           <padding>
+                              <Insets bottom="30.0" top="68.0" />
+                           </padding>
+                           <children>
+                              <!-- Aquí se inyectan dinámicamente las páginas tipo Word -->
+                              <VBox fx:id="panePreview" alignment="TOP_CENTER" spacing="20.0" />
+                           </children>
+                        </VBox>
+                     </content>
+                  </ScrollPane>
+                  <HBox alignment="CENTER_LEFT" maxHeight="-Infinity" maxWidth="-Infinity" spacing="7.0" styleClass="floating-action-bar" StackPane.alignment="TOP_LEFT">
+                     <StackPane.margin><Insets left="14.0" top="14.0" /></StackPane.margin>
+                     <children>
+                        <Button fx:id="btnGenerarPDF" onAction="#handleClicAccion" styleClass="button-primary" text="Generar PDF" />
+                        <Button fx:id="btnGuardarServidor" onAction="#handleGuardarServidor" styleClass="button-secondary" text="Guardar en servidor" />
+                        <Button fx:id="btnImprimir" onAction="#handleImprimir" styleClass="button-success" text="Imprimir" />
+                     </children>
+                  </HBox>
+               </StackPane>
             </children>
          </VBox>
 
@@ -139,20 +142,19 @@
    </center>
 
    <right>
-      <VBox fx:id="customizationDrawer" managed="false" prefWidth="370.0" style="-fx-background-color: #ffffff; -fx-border-color: #cbd5e0; -fx-border-width: 0 0 0 1;" visible="false">
+      <VBox fx:id="customizationDrawer" managed="false" prefWidth="370.0" styleClass="customization-drawer" visible="false">
          <children>
-            <HBox alignment="CENTER_LEFT" spacing="8.0" style="-fx-background-color: #eef2ff; -fx-padding: 12px;">
-               <Label text="Personalizar formato" textFill="#312e81">
-                  <font><Font name="System Bold" size="13.0" /></font>
-               </Label>
+            <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="drawer-header">
+               <VBox spacing="1.0">
+                  <Label styleClass="drawer-title" text="Personalizar formato" />
+                  <Label styleClass="brand-subtitle" text="Diseño, campos y plantillas" />
+               </VBox>
                <Region HBox.hgrow="ALWAYS" />
                <Button onAction="#handleTogglePersonalizacion" text="Cerrar" />
             </HBox>
-            <ScrollPane fx:id="customizationScrollPane" fitToWidth="true" hbarPolicy="NEVER" style="-fx-background-color: transparent;" VBox.vgrow="ALWAYS">
+            <ScrollPane fx:id="customizationScrollPane" fitToWidth="true" hbarPolicy="NEVER" styleClass="drawer-scroll" VBox.vgrow="ALWAYS">
                <content>
-                  <VBox fx:id="customizationContent" spacing="10.0">
-                     <padding><Insets bottom="18.0" left="12.0" right="12.0" top="12.0" /></padding>
-                  </VBox>
+                  <VBox fx:id="customizationContent" styleClass="drawer-content" />
                </content>
             </ScrollPane>
          </children>
