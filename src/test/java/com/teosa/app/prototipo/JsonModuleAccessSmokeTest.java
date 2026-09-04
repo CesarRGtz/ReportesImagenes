@@ -8,6 +8,7 @@ public class JsonModuleAccessSmokeTest {
                 "Cliente de prueba", "02/09/2026", "Taller", "R-1",
                 "C-1", "F-1", "Motor", "Prueba de serialización");
         CategoriaFotografica category = new CategoriaFotografica("Antes");
+        category.setSaltoPaginaDespues(true);
         category.agregarFotografia(new FotoEvidencia("foto.jpg", "Detalle"));
         report.agregarCategoriaFotografica(category);
 
@@ -15,6 +16,7 @@ public class JsonModuleAccessSmokeTest {
         ReporteServicio restored = JsonSupport.GSON.fromJson(json, ReporteServicio.class);
         if (!"Cliente de prueba".equals(restored.getCliente())
                 || restored.getCategoriasFotograficas().size() != 1
+                || !restored.getCategoriasFotograficas().getFirst().isSaltoPaginaDespues()
                 || restored.getCategoriasFotograficas().getFirst().getFotografias().size() != 1) {
             throw new AssertionError("El reporte no se reconstruyó correctamente desde JSON");
         }

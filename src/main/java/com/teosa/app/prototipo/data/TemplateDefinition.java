@@ -25,6 +25,7 @@ public class TemplateDefinition {
     private String section1Title = "1.  DATOS DEL EQUIPO:";
     private String section2Title = "2.  DESCRIPCIÓN DEL TRABAJO:";
     private String section3Title = "3.  REPORTE FOTOGRÁFICO DEL ANTES, DURANTE Y DESPUÉS DE REALIZAR EL TRABAJO:";
+    private boolean startPhotosOnNewPage;
     private Map<String, String> presetValues = new LinkedHashMap<>();
 
     public static TemplateDefinition defaults() {
@@ -91,6 +92,10 @@ public class TemplateDefinition {
     public void setSection2Title(String section2Title) { this.section2Title = section2Title; }
     public String getSection3Title() { return section3Title; }
     public void setSection3Title(String section3Title) { this.section3Title = section3Title; }
+    public boolean isStartPhotosOnNewPage() { return startPhotosOnNewPage; }
+    public void setStartPhotosOnNewPage(boolean startPhotosOnNewPage) {
+        this.startPhotosOnNewPage = startPhotosOnNewPage;
+    }
     public Map<String, String> getPresetValues() { if (presetValues == null) presetValues = new LinkedHashMap<>(); return presetValues; }
     public void setPresetValues(Map<String, String> presetValues) { this.presetValues = presetValues; }
 }

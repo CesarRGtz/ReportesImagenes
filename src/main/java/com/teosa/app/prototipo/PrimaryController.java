@@ -278,6 +278,7 @@ public class PrimaryController {
         }
         for (CategoriaFotografica categoria : categorias) {
             CategoriaFotografica copy = new CategoriaFotografica(categoria.getTitulo());
+            copy.setSaltoPaginaDespues(categoria.isSaltoPaginaDespues());
             for (FotoEvidencia foto : categoria.getFotografias()) {
                 FotoEvidencia photoCopy = new FotoEvidencia(foto.getRuta(), foto.getEtiqueta());
                 photoCopy.setAncho(foto.getAncho());
@@ -715,6 +716,8 @@ public class PrimaryController {
         TextField section1 = new TextField(activeTemplate.getSection1Title());
         TextField section2 = new TextField(activeTemplate.getSection2Title());
         TextField section3 = new TextField(activeTemplate.getSection3Title());
+        CheckBox startPhotosOnNewPage = new CheckBox("Iniciar el punto 3 en una página nueva");
+        startPhotosOnNewPage.setSelected(activeTemplate.isStartPhotosOnNewPage());
         section1.setPromptText("Título del punto 1");
         section2.setPromptText("Título del punto 2");
         section3.setPromptText("Título del punto 3");
@@ -722,8 +725,13 @@ public class PrimaryController {
         section1.textProperty().addListener((o,a,b) -> { activeTemplate.setSection1Title(b); actualizarPreview(); });
         section2.textProperty().addListener((o,a,b) -> { activeTemplate.setSection2Title(b); actualizarPreview(); });
         section3.textProperty().addListener((o,a,b) -> { activeTemplate.setSection3Title(b); actualizarPreview(); });
+        startPhotosOnNewPage.selectedProperty().addListener((o,a,b) -> {
+            activeTemplate.setStartPhotosOnNewPage(b);
+            actualizarPreview();
+        });
         sectionColor.setOnAction(event -> { activeTemplate.setSectionBackgroundColor(toHex(sectionColor.getValue())); actualizarPreview(); });
         sectionsEditor.getChildren().addAll(section1, section2, section3,
+                startPhotosOnNewPage,
                 new HBox(8, new Label("Color de encabezados:"), sectionColor));
 
         VBox headerEditor = new VBox(8);
@@ -1333,11 +1341,20 @@ public class PrimaryController {
                 actualizarPreview();
             });
 
+            CheckBox saltoPagina = new CheckBox(
+                    "Comenzar la siguiente categoría en una página nueva");
+            saltoPagina.setSelected(categoria.isSaltoPaginaDespues());
+            saltoPagina.selectedProperty().addListener((obs, oldVal, newVal) -> {
+                categoria.setSaltoPaginaDespues(newVal);
+                actualizarPreview();
+            });
+
             Button agregarFotos = new Button("Agregar imágenes a esta categoría");
             agregarFotos.setMaxWidth(Double.MAX_VALUE);
             agregarFotos.getStyleClass().add("button-secondary");
             agregarFotos.setOnAction(event -> seleccionarFotosParaCategoria(categoria));
-            tarjetaCategoria.getChildren().addAll(encabezadoControl, tituloCategoria, agregarFotos);
+            tarjetaCategoria.getChildren().addAll(
+                    encabezadoControl, tituloCategoria, saltoPagina, agregarFotos);
 
             for (int fotoIndex = 0; fotoIndex < categoria.getFotografias().size(); fotoIndex++) {
                 FotoEvidencia foto = categoria.getFotografias().get(fotoIndex);
@@ -1371,8 +1388,8 @@ public class PrimaryController {
                     actualizarPreview();
                 });
 
-                Button recortarFoto = new Button("Recortar");
-                recortarFoto.setOnAction(event -> recortarFotografia(foto));
+                Button recortarFoto = new Button("Editar");
+                recortarFoto.setOnAction(event -> editarFotografia(foto));
 
                 Button restaurarFoto = new Button("Restaurar original");
                 restaurarFoto.setVisible(estaRecortada(foto));
@@ -1418,113 +1435,24 @@ public class PrimaryController {
                 Path.of(foto.getRuta()).toAbsolutePath().normalize());
     }
 
-    private void recortarFotografia(FotoEvidencia foto) {
-        File original = new File(foto.getRutaOriginal());
-        if (!original.isFile()) {
-            mostrarAlerta(Alert.AlertType.ERROR, "No se puede recortar",
-                    "No se encontró la fotografía original.");
-            return;
-        }
-
-        Image imagen = new Image(original.toURI().toString());
-        if (imagen.isError() || imagen.getWidth() <= 0 || imagen.getHeight() <= 0) {
-            mostrarAlerta(Alert.AlertType.ERROR, "No se puede recortar",
-                    "El formato de la imagen no pudo abrirse.");
-            return;
-        }
-
-        double escala = Math.min(760.0 / imagen.getWidth(), 500.0 / imagen.getHeight());
-        escala = Math.min(1.0, escala);
-        double ancho = Math.max(1, imagen.getWidth() * escala);
-        double alto = Math.max(1, imagen.getHeight() * escala);
-
-        Pane superficie = new Pane();
-        superficie.setPrefSize(ancho, alto);
-        superficie.setMinSize(ancho, alto);
-        superficie.setMaxSize(ancho, alto);
-        ImageView vista = new ImageView(imagen);
-        vista.setFitWidth(ancho);
-        vista.setFitHeight(alto);
-        vista.setPreserveRatio(false);
-        javafx.scene.shape.Rectangle seleccion = new javafx.scene.shape.Rectangle();
-        seleccion.setFill(Color.color(0.15, 0.45, 0.95, 0.18));
-        seleccion.setStroke(Color.web("#2563eb"));
-        seleccion.setStrokeWidth(2);
-
-        double inicialX = Math.max(0, foto.getCropX()) * ancho;
-        double inicialY = Math.max(0, foto.getCropY()) * alto;
-        double inicialW = Math.min(1, foto.getCropWidth()) * ancho;
-        double inicialH = Math.min(1, foto.getCropHeight()) * alto;
-        seleccion.setX(inicialX); seleccion.setY(inicialY);
-        seleccion.setWidth(Math.max(1, inicialW)); seleccion.setHeight(Math.max(1, inicialH));
-        superficie.getChildren().addAll(vista, seleccion);
-
-        final double[] inicio = new double[2];
-        superficie.setOnMousePressed(event -> {
-            inicio[0] = Math.max(0, Math.min(ancho, event.getX()));
-            inicio[1] = Math.max(0, Math.min(alto, event.getY()));
-            seleccion.setX(inicio[0]); seleccion.setY(inicio[1]);
-            seleccion.setWidth(0); seleccion.setHeight(0);
-        });
-        superficie.setOnMouseDragged(event -> {
-            double x = Math.max(0, Math.min(ancho, event.getX()));
-            double y = Math.max(0, Math.min(alto, event.getY()));
-            seleccion.setX(Math.min(inicio[0], x));
-            seleccion.setY(Math.min(inicio[1], y));
-            seleccion.setWidth(Math.abs(x - inicio[0]));
-            seleccion.setHeight(Math.abs(y - inicio[1]));
-        });
-
-        Dialog<ButtonType> dialog = new Dialog<>();
-        aplicarTema(dialog);
-        dialog.setTitle("Recortar imagen");
-        dialog.setHeaderText("Arrastra sobre la fotografía para elegir el área que deseas conservar");
-        ButtonType aplicar = new ButtonType("Aplicar recorte", ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(aplicar, ButtonType.CANCEL);
-        Button todo = new Button("Seleccionar toda la imagen");
-        todo.setOnAction(event -> {
-            seleccion.setX(0); seleccion.setY(0);
-            seleccion.setWidth(ancho); seleccion.setHeight(alto);
-        });
-        dialog.getDialogPane().setContent(new VBox(10, superficie, todo));
-        dialog.initOwner(btnGenerarPDF.getScene().getWindow());
-        Optional<ButtonType> resultado = dialog.showAndWait();
-        if (resultado.isEmpty() || resultado.get() != aplicar) return;
-        if (seleccion.getWidth() < 3 || seleccion.getHeight() < 3) {
-            mostrarAlerta(Alert.AlertType.WARNING, "Área demasiado pequeña",
-                    "Selecciona un área visible de la fotografía.");
-            return;
-        }
-
+    private void editarFotografia(FotoEvidencia foto) {
+        String rutaActual = foto.getRuta();
+        if (rutaActual == null || rutaActual.isBlank()) rutaActual = foto.getRutaOriginal();
         try {
-            BufferedImage fuente = ImageIO.read(original);
-            if (fuente == null) throw new IllegalArgumentException("Formato no compatible");
-            double nx = seleccion.getX() / ancho;
-            double ny = seleccion.getY() / alto;
-            double nw = seleccion.getWidth() / ancho;
-            double nh = seleccion.getHeight() / alto;
-            int x = Math.max(0, Math.min(fuente.getWidth() - 1,
-                    (int) Math.round(nx * fuente.getWidth())));
-            int y = Math.max(0, Math.min(fuente.getHeight() - 1,
-                    (int) Math.round(ny * fuente.getHeight())));
-            int width = Math.max(1, Math.min(fuente.getWidth() - x,
-                    (int) Math.round(nw * fuente.getWidth())));
-            int height = Math.max(1, Math.min(fuente.getHeight() - y,
-                    (int) Math.round(nh * fuente.getHeight())));
-            BufferedImage recorte = fuente.getSubimage(x, y, width, height);
-            Path carpeta = AppDirectories.cache().resolve("recortes");
-            Files.createDirectories(carpeta);
-            Path salida = carpeta.resolve("recorte-" + UUID.randomUUID() + ".png");
-            if (!ImageIO.write(recorte, "png", salida.toFile())) {
-                throw new IllegalStateException("No fue posible guardar el recorte");
-            }
-            foto.setRuta(salida.toAbsolutePath().toString());
-            foto.setCropX(nx); foto.setCropY(ny);
-            foto.setCropWidth(nw); foto.setCropHeight(nh);
+            Optional<Path> resultado = ImageEditorDialog.mostrar(
+                    btnGenerarPDF.getScene().getWindow(), Path.of(rutaActual),
+                    AppDirectories.cache().resolve("ediciones"));
+            if (resultado.isEmpty()) return;
+
+            foto.setRuta(resultado.get().toAbsolutePath().toString());
+            foto.setCropX(0);
+            foto.setCropY(0);
+            foto.setCropWidth(1);
+            foto.setCropHeight(1);
             actualizarControlesFotos();
             actualizarPreview();
         } catch (Exception ex) {
-            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo recortar", ex.getMessage());
+            mostrarAlerta(Alert.AlertType.ERROR, "No se pudo editar la imagen", ex.getMessage());
         }
     }
 
@@ -1535,28 +1463,33 @@ public class PrimaryController {
 
         CategoriaFotografica primeraCategoria = categorias.get(0);
         double bloqueInicial = ReportLayout.estimatePhotoSectionHeight(
-                activeTemplate.getSection3Title(), false)
+                activeTemplate.getSection3Title())
                 + ReportLayout.estimateCategoryTitleHeight(
                 valorOVacio(primeraCategoria.getTitulo()),
                 activeTemplate.getCategoryTitleStyle().getFontSize())
                 + estimarPrimeraFila(primeraCategoria);
-        if (bloqueInicial > estado.espacioDisponible) {
-            estado = crearPaginaFotos(false);
+        if (activeTemplate.isStartPhotosOnNewPage() || bloqueInicial > estado.espacioDisponible) {
+            estado = crearPaginaFotos(true);
         } else {
             estado.tabla.getChildren().add(barraSeccionPreview(
                     activeTemplate.getSection3Title()));
             estado.espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
-                    activeTemplate.getSection3Title(), false);
+                    activeTemplate.getSection3Title());
         }
 
         for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
             CategoriaFotografica categoria = categorias.get(categoriaIndex);
+            boolean paginaNuevaForzada = categoriaIndex > 0
+                    && categorias.get(categoriaIndex - 1).isSaltoPaginaDespues();
+            if (paginaNuevaForzada) {
+                estado = crearPaginaFotos(false);
+            }
             String tituloCategoria = valorOVacio(categoria.getTitulo());
             double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(tituloCategoria,
                     activeTemplate.getCategoryTitleStyle().getFontSize())
                     + estimarPrimeraFila(categoria);
-            if (altoMinimoCategoria > estado.espacioDisponible) {
-                estado = crearPaginaFotos(true);
+            if (!paginaNuevaForzada && altoMinimoCategoria > estado.espacioDisponible) {
+                estado = crearPaginaFotos(false);
             }
 
             Label encabezadoCategoria = crearTituloCategoriaPreview(tituloCategoria);
@@ -1594,13 +1527,7 @@ public class PrimaryController {
                 }
 
                 if (altoFilaNatural > estado.espacioDisponible) {
-                    estado = crearPaginaFotos(true);
-                    Label continuacion = crearTituloCategoriaPreview(tituloCategoria + " (continuación)");
-                    configurarDestinoDrop(continuacion, categoriaIndex, inicioFila);
-                    estado.tabla.getChildren().add(continuacion);
-                    estado.espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(
-                            tituloCategoria + " (continuación)",
-                            activeTemplate.getCategoryTitleStyle().getFontSize());
+                    estado = crearPaginaFotos(false);
                 }
 
                 double altoMaximoFila = Math.max(1,
@@ -1632,18 +1559,17 @@ public class PrimaryController {
         }
     }
 
-    private PreviewPageState crearPaginaFotos(boolean continuacion) {
+    private PreviewPageState crearPaginaFotos(boolean incluirEncabezado) {
         VBox pagina = crearHojaPaginaWord();
         VBox tablaFotos = crearTablaReportePreview();
         pagina.getChildren().add(tablaFotos);
         double espacioDisponible = ReportLayout.CONTENT_HEIGHT;
-        HBox encabezado = barraSeccionPreview(
-                continuacion
-                        ? activeTemplate.getSection3Title() + " (CONTINUACIÓN)"
-                        : activeTemplate.getSection3Title());
-        tablaFotos.getChildren().add(encabezado);
-        espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
-                activeTemplate.getSection3Title(), continuacion);
+        if (incluirEncabezado) {
+            HBox encabezado = barraSeccionPreview(activeTemplate.getSection3Title());
+            tablaFotos.getChildren().add(encabezado);
+            espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
+                    activeTemplate.getSection3Title());
+        }
         panePreview.getChildren().add(pagina);
         return new PreviewPageState(pagina, tablaFotos, espacioDisponible);
     }

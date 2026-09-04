@@ -91,24 +91,33 @@ public class PdfReportGenerator {
             int finInicial = calcularFinFila(primeraCategoria, 0);
             float[] anchosIniciales = calcularAnchosFila(primeraCategoria, 0, finInicial);
             double bloqueInicial = ReportLayout.estimatePhotoSectionHeight(
-                    template.getSection3Title(), false)
+                    template.getSection3Title())
                     + ReportLayout.estimateCategoryTitleHeight(primerTitulo,
                     template.getCategoryTitleStyle().getFontSize())
                     + estimarAltoFilaPdf(primeraCategoria, 0, finInicial, anchosIniciales,
                     template.getPhotoCommentStyle())
                     + ReportLayout.PHOTO_SPACING;
-            if (bloqueInicial > espacioDisponible) {
+            if (template.isStartPhotosOnNewPage() || bloqueInicial > espacioDisponible) {
                 documento.add(tablaReporte);
                 documento.newPage();
                 tablaReporte = crearTablaReporte();
                 espacioDisponible = ReportLayout.CONTENT_HEIGHT;
             }
-            agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, false,
+            agregarEncabezadoFotografico(tablaReporte, fuenteSeccion,
                     template.getSection3Title(), colorSeccion);
             espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
-                    template.getSection3Title(), false);
+                    template.getSection3Title());
 
-            for (CategoriaFotografica categoria : categorias) {
+            for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
+                CategoriaFotografica categoria = categorias.get(categoriaIndex);
+                boolean paginaNuevaForzada = categoriaIndex > 0
+                        && categorias.get(categoriaIndex - 1).isSaltoPaginaDespues();
+                if (paginaNuevaForzada) {
+                    documento.add(tablaReporte);
+                    documento.newPage();
+                    tablaReporte = crearTablaReporte();
+                    espacioDisponible = ReportLayout.CONTENT_HEIGHT;
+                }
                 String textoCategoria = valorOVacio(categoria.getTitulo());
                 int primerFin = calcularFinFila(categoria, 0);
                 float[] primerosAnchos = calcularAnchosFila(categoria, 0, primerFin);
@@ -117,15 +126,11 @@ public class PdfReportGenerator {
                         + estimarAltoFilaPdf(categoria, 0, primerFin, primerosAnchos,
                         template.getPhotoCommentStyle())
                         + ReportLayout.PHOTO_SPACING;
-                if (altoMinimoCategoria > espacioDisponible) {
+                if (!paginaNuevaForzada && altoMinimoCategoria > espacioDisponible) {
                     documento.add(tablaReporte);
                     documento.newPage();
                     tablaReporte = crearTablaReporte();
-                    agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, true,
-                            template.getSection3Title(), colorSeccion);
-                    espacioDisponible = ReportLayout.CONTENT_HEIGHT
-                            - ReportLayout.estimatePhotoSectionHeight(
-                            template.getSection3Title(), true);
+                    espacioDisponible = ReportLayout.CONTENT_HEIGHT;
                 }
                 agregarTituloCategoria(tablaReporte, textoCategoria, fuenteCategoria,
                         template.getCategoryTitleAlignment());
@@ -143,16 +148,7 @@ public class PdfReportGenerator {
                         documento.add(tablaReporte);
                         documento.newPage();
                         tablaReporte = crearTablaReporte();
-                        agregarEncabezadoFotografico(tablaReporte, fuenteSeccion, true,
-                                template.getSection3Title(), colorSeccion);
-                        String continuacion = textoCategoria + " (continuación)";
-                        agregarTituloCategoria(tablaReporte, continuacion, fuenteCategoria,
-                                template.getCategoryTitleAlignment());
-                        espacioDisponible = ReportLayout.CONTENT_HEIGHT
-                                - ReportLayout.estimatePhotoSectionHeight(
-                                template.getSection3Title(), true)
-                                - ReportLayout.estimateCategoryTitleHeight(continuacion,
-                                template.getCategoryTitleStyle().getFontSize());
+                        espacioDisponible = ReportLayout.CONTENT_HEIGHT;
                     }
 
                     agregarFilaFotos(tablaReporte, categoria, inicio, fin, anchos,
@@ -176,14 +172,10 @@ public class PdfReportGenerator {
     }
 
     private static void agregarEncabezadoFotografico(
-            PdfPTable tabla, Font fuente, boolean continuacion,
-            String titulo, Color fondo) {
-        String texto = continuacion
-                ? valorOVacio(titulo) + " (CONTINUACIÓN)"
-                : valorOVacio(titulo);
-        PdfPCell encabezado = celdaEncabezado(texto, fuente, fondo);
+            PdfPTable tabla, Font fuente, String titulo, Color fondo) {
+        PdfPCell encabezado = celdaEncabezado(valorOVacio(titulo), fuente, fondo);
         encabezado.setMinimumHeight((float) ReportLayout.estimatePhotoSectionHeight(
-                titulo, continuacion));
+                titulo));
         tabla.addCell(encabezado);
     }
 

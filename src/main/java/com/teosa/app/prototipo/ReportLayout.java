@@ -182,9 +182,7 @@ final class ReportLayout {
         return Math.max(SECTION_HEADER_HEIGHT, lines * 14.0 + 12.0);
     }
 
-    static double estimatePhotoSectionHeight(String title, boolean continuation) {
-        String value = title == null ? "" : title;
-        if (continuation) value += " (CONTINUACIÓN)";
-        return Math.max(PHOTO_SECTION_HEIGHT, estimateSectionHeaderHeight(value));
+    static double estimatePhotoSectionHeight(String title) {
+        return Math.max(PHOTO_SECTION_HEIGHT, estimateSectionHeaderHeight(title));
     }
 }

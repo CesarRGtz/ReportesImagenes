@@ -5,6 +5,7 @@ import java.util.List;
 
 public class CategoriaFotografica {
     private String titulo;
+    private boolean saltoPaginaDespues;
     private List<FotoEvidencia> fotografias;
 
     public CategoriaFotografica(String titulo) {
@@ -22,6 +23,14 @@ public class CategoriaFotografica {
 
     public void setTitulo(String titulo) {
         this.titulo = titulo;
+    }
+
+    public boolean isSaltoPaginaDespues() {
+        return saltoPaginaDespues;
+    }
+
+    public void setSaltoPaginaDespues(boolean saltoPaginaDespues) {
+        this.saltoPaginaDespues = saltoPaginaDespues;
     }
 
     public List<FotoEvidencia> getFotografias() {
