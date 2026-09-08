@@ -15,5 +15,6 @@ public final class AppDirectories {
     public static Path serverData() { return base().resolve("datos-servidor"); }
     public static Path cache() { return base().resolve("cache"); }
     public static Path pending() { return base().resolve("pendientes"); }
+    public static Path localReports() { return base().resolve("reportes-locales"); }
     public static Path backups() { return base().resolve("respaldos"); }
 }

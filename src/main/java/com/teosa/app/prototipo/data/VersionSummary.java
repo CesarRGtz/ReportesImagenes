@@ -5,6 +5,8 @@ public class VersionSummary {
     private long savedAt;
     private String author;
     private String computer;
+    private boolean pending;
+    private String localId;
 
     public int getVersion() { return version; }
     public void setVersion(int version) { this.version = version; }
@@ -14,4 +16,8 @@ public class VersionSummary {
     public void setAuthor(String author) { this.author = author; }
     public String getComputer() { return computer; }
     public void setComputer(String computer) { this.computer = computer; }
+    public boolean isPending() { return pending; }
+    public void setPending(boolean pending) { this.pending = pending; }
+    public String getLocalId() { return localId; }
+    public void setLocalId(String localId) { this.localId = localId; }
 }

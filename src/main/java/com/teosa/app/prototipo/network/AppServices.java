@@ -3,7 +3,11 @@ package com.teosa.app.prototipo.network;
 import com.teosa.app.prototipo.data.*;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
@@ -78,7 +82,20 @@ public final class AppServices {
     public SaveResponse saveReport(ReportSnapshot snapshot) throws IOException {
         snapshot.setAuthor(UserIdentity.user());
         snapshot.setComputer(UserIdentity.computer());
+        snapshot.setSavedAt(System.currentTimeMillis());
         ReportTransfer transfer = AssetManager.pack(snapshot);
+        if (config != null && config.getRole() == AppConfig.Role.SECONDARY) {
+            if (client == null) {
+                queue.enqueue(transfer);
+                return queuedResponse(snapshot);
+            }
+            SaveResponse response = queue.saveLocallyAndTryUpload(transfer, client);
+            if (response != null) {
+                setStatus("Conectado · reporte guardado localmente y sincronizado");
+                return response;
+            }
+            return queuedResponse(snapshot);
+        }
         if (client == null) return queueAndRespond(snapshot, transfer);
         try {
             SaveResponse response = client.saveReport(transfer);
@@ -92,6 +109,10 @@ public final class AppServices {
     private SaveResponse queueAndRespond(ReportSnapshot snapshot, ReportTransfer transfer)
             throws IOException {
         queue.enqueue(transfer);
+        return queuedResponse(snapshot);
+    }
+
+    private SaveResponse queuedResponse(ReportSnapshot snapshot) {
         SaveResponse response = new SaveResponse();
         response.setSuccess(true);
         response.setQueued(true);
@@ -106,13 +127,99 @@ public final class AppServices {
         return client;
     }
 
-    public List<ReportSummary> listReports(String query) throws IOException { return requireClient().listReports(query); }
-    public List<VersionSummary> listVersions(String id) throws IOException { return requireClient().listVersions(id); }
-    public ReportSnapshot loadReport(String id, int version) throws IOException {
-        return AssetManager.materialize(requireClient().loadReport(id, version));
+    public List<ReportSummary> listReports(String query) throws IOException {
+        List<ReportSummary> local = queue.listReports(query);
+        List<ReportSummary> remote = new ArrayList<>();
+        if (client != null) {
+            try { remote.addAll(client.listReports(query)); }
+            catch (IOException ignored) { /* El historial local sigue disponible. */ }
+        }
+        Map<String, ReportSummary> merged = new LinkedHashMap<>();
+        for (ReportSummary summary : remote) merged.put(summary.getReportId(), summary);
+        for (ReportSummary localSummary : local) {
+            ReportSummary serverSummary = merged.get(localSummary.getReportId());
+            if (serverSummary == null) {
+                merged.put(localSummary.getReportId(), localSummary);
+                continue;
+            }
+            serverSummary.setPendingCount(localSummary.getPendingCount());
+            serverSummary.setVersionCount(serverSummary.getVersionCount()
+                    + localSummary.getPendingCount());
+            if (localSummary.isPending()
+                    && localSummary.getModifiedAt() > serverSummary.getModifiedAt()) {
+                serverSummary.setClient(localSummary.getClient());
+                serverSummary.setDate(localSummary.getDate());
+                serverSummary.setArea(localSummary.getArea());
+                serverSummary.setRemision(localSummary.getRemision());
+                serverSummary.setModifiedAt(localSummary.getModifiedAt());
+                serverSummary.setLastAuthor(localSummary.getLastAuthor());
+            }
+        }
+        return merged.values().stream()
+                .sorted(Comparator.comparingLong(ReportSummary::getModifiedAt).reversed())
+                .toList();
     }
-    public void deleteReport(String id) throws IOException { requireClient().deleteReport(id); }
-    public void deleteVersion(String id, int version) throws IOException { requireClient().deleteVersion(id, version); }
+
+    public List<VersionSummary> listVersions(String id) throws IOException {
+        List<VersionSummary> remote = new ArrayList<>();
+        if (client != null) {
+            try { remote.addAll(client.listVersions(id)); }
+            catch (IOException ignored) { /* Se muestran las copias locales. */ }
+        }
+        List<VersionSummary> local = queue.listVersions(id);
+        Map<Integer, VersionSummary> remoteByVersion = new LinkedHashMap<>();
+        for (VersionSummary version : remote) remoteByVersion.put(version.getVersion(), version);
+        List<VersionSummary> merged = new ArrayList<>(remote);
+        for (VersionSummary version : local) {
+            if (version.isPending() || !remoteByVersion.containsKey(version.getVersion())) {
+                merged.add(version);
+            }
+        }
+        merged.sort(Comparator.comparingLong(VersionSummary::getSavedAt).reversed());
+        return merged;
+    }
+
+    public ReportSnapshot loadReport(String id, int version) throws IOException {
+        try {
+            ReportTransfer transfer = requireClient().loadReport(id, version);
+            if (config != null && config.getRole() == AppConfig.Role.SECONDARY) {
+                queue.cacheSynced(transfer);
+            }
+            return AssetManager.materialize(transfer);
+        } catch (IOException ex) {
+            return queue.loadVersion(id, version);
+        }
+    }
+
+    public ReportSnapshot loadReport(String id, VersionSummary version) throws IOException {
+        if (version.getLocalId() != null && (version.isPending() || !isConnected())) {
+            return queue.load(version.getLocalId());
+        }
+        try {
+            return loadReport(id, version.getVersion());
+        } catch (IOException ex) {
+            if (version.getLocalId() != null) return queue.load(version.getLocalId());
+            throw ex;
+        }
+    }
+
+    public void deleteReport(String id) throws IOException {
+        if (isConnected()) requireClient().deleteReport(id);
+        queue.deleteLocalReport(id);
+    }
+
+    public void deleteVersion(String id, int version) throws IOException {
+        if (isConnected()) requireClient().deleteVersion(id, version);
+        queue.deleteSyncedVersion(id, version);
+    }
+
+    public void deleteVersion(String id, VersionSummary version) throws IOException {
+        if (version.isPending() || (!isConnected() && version.getLocalId() != null)) {
+            queue.deleteLocalVersion(version.getLocalId());
+            return;
+        }
+        deleteVersion(id, version.getVersion());
+    }
     public List<TemplateDefinition> listTemplates() throws IOException { return requireClient().listTemplates(); }
     public void saveTemplate(TemplateDefinition template) throws IOException { requireClient().saveTemplate(template); }
     public void deleteTemplate(String name) throws IOException { requireClient().deleteTemplate(name); }

@@ -342,14 +342,14 @@ public class PrimaryController {
             if (response.getVersion() > 0) currentVersion = response.getVersion();
             lastSavedFingerprint = savedFingerprint;
             btnGuardarServidor.setDisable(false);
-            btnGuardarServidor.setText("Guardar en servidor");
+            btnGuardarServidor.setText("Guardar reporte");
             mostrarAlerta(Alert.AlertType.INFORMATION,
                     response.isQueued() ? "Guardado pendiente" : "Reporte guardado",
                     response.getMessage());
         });
         task.setOnFailed(event -> {
             btnGuardarServidor.setDisable(false);
-            btnGuardarServidor.setText("Guardar en servidor");
+            btnGuardarServidor.setText("Guardar reporte");
             mostrarAlerta(Alert.AlertType.ERROR, "No se pudo guardar",
                     task.getException().getMessage());
         });
@@ -409,13 +409,16 @@ public class PrimaryController {
                 super.updateItem(item, empty);
                 setText(empty || item == null ? null : item.getClient() + " · " + item.getDate()
                         + "\n" + valorSinNulo(item.getArea()) + " · " + item.getVersionCount()
-                        + " versión(es) · " + valorSinNulo(item.getLastAuthor()));
+                        + " versión(es) · " + valorSinNulo(item.getLastAuthor())
+                        + (item.isPending() ? "\n● " + item.getPendingCount()
+                        + " pendiente(s) de subir" : ""));
             }
         });
         versions.setCellFactory(view -> new ListCell<>() {
             @Override protected void updateItem(VersionSummary item, boolean empty) {
                 super.updateItem(item, empty);
-                setText(empty || item == null ? null : "Versión " + item.getVersion() + " · "
+                setText(empty || item == null ? null : (item.isPending()
+                        ? "● PENDIENTE DE SUBIR · " : "Versión " + item.getVersion() + " · ")
                         + formatTimestamp(item.getSavedAt()) + "\n"
                         + valorSinNulo(item.getAuthor()) + " @ " + valorSinNulo(item.getComputer()));
             }
@@ -429,7 +432,10 @@ public class PrimaryController {
                 new HBox(8, deleteVersion, deleteReport));
         VBox.setVgrow(versions, Priority.ALWAYS);
         HBox lists = new HBox(12, reports, right);
-        VBox content = new VBox(10, searchRow, new Label("Reportes guardados"), lists);
+        Label pendingHelp = new Label("● Indica un documento guardado localmente y pendiente de subir");
+        pendingHelp.setStyle("-fx-text-fill: #b45309; -fx-font-weight: bold;");
+        VBox content = new VBox(10, searchRow, new Label("Reportes guardados"),
+                pendingHelp, lists);
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().setPrefSize(820, 560);
 
@@ -460,7 +466,7 @@ public class PrimaryController {
             if (report == null || version == null || !confirmar("Eliminar versión",
                     "¿Eliminar definitivamente la versión " + version.getVersion() + "?")) return;
             try {
-                AppServices.get().deleteVersion(report.getReportId(), version.getVersion());
+                AppServices.get().deleteVersion(report.getReportId(), version);
                 loadReports.run();
             } catch (Exception ex) { mostrarAlerta(Alert.AlertType.ERROR, "No se pudo eliminar", ex.getMessage()); }
         });
@@ -485,7 +491,7 @@ public class PrimaryController {
             return;
         }
         try {
-            aplicarSnapshot(AppServices.get().loadReport(report.getReportId(), version.getVersion()));
+            aplicarSnapshot(AppServices.get().loadReport(report.getReportId(), version));
         } catch (Exception ex) {
             mostrarAlerta(Alert.AlertType.ERROR, "No se pudo importar", ex.getMessage());
         }
@@ -543,8 +549,31 @@ public class PrimaryController {
 
     private boolean formularioTieneContenido() {
         return !valorSinNulo(txtCliente.getText()).isBlank()
+                || !valorSinNulo(txtArea.getText()).isBlank()
+                || !valorSinNulo(txtRemision.getText()).isBlank()
+                || !valorSinNulo(txtCotizacion.getText()).isBlank()
+                || !valorSinNulo(txtFactura.getText()).isBlank()
                 || !valorSinNulo(txtDatosEquipo.getText()).isBlank()
-                || !valorSinNulo(txtDescripcion.getText()).isBlank() || !categorias.isEmpty();
+                || !valorSinNulo(txtDescripcion.getText()).isBlank()
+                || customValueControls.values().stream()
+                        .anyMatch(field -> !valorSinNulo(field.getText()).isBlank())
+                || !categorias.isEmpty();
+    }
+
+    public boolean confirmarCierreSiHayCambios() {
+        if (!formularioTieneContenido() || !tieneCambios()) return true;
+
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        aplicarTema(alert);
+        alert.setTitle("Cerrar programa");
+        alert.setHeaderText("Hay contenido sin guardar");
+        alert.setContentText("Si cierras el programa, los cambios del reporte actual se perderán.");
+        ButtonType closeWithoutSaving = new ButtonType(
+                "Cerrar sin guardar", ButtonBar.ButtonData.OK_DONE);
+        ButtonType keepEditing = new ButtonType(
+                "Seguir editando", ButtonBar.ButtonData.CANCEL_CLOSE);
+        alert.getButtonTypes().setAll(closeWithoutSaving, keepEditing);
+        return alert.showAndWait().orElse(keepEditing) == closeWithoutSaving;
     }
 
     private boolean confirmar(String title, String message) {
@@ -718,6 +747,18 @@ public class PrimaryController {
         TextField section3 = new TextField(activeTemplate.getSection3Title());
         CheckBox startPhotosOnNewPage = new CheckBox("Iniciar el punto 3 en una página nueva");
         startPhotosOnNewPage.setSelected(activeTemplate.isStartPhotosOnNewPage());
+        ComboBox<String> photoBorderMode = new ComboBox<>(FXCollections.observableArrayList(
+                TemplateDefinition.PHOTO_BORDER_FULL_PAGE,
+                TemplateDefinition.PHOTO_BORDER_CONTENT));
+        photoBorderMode.setValue(activeTemplate.getPhotoBorderMode());
+        photoBorderMode.setMaxWidth(Double.MAX_VALUE);
+        photoBorderMode.setConverter(new StringConverter<>() {
+            @Override public String toString(String value) {
+                return TemplateDefinition.PHOTO_BORDER_CONTENT.equals(value)
+                        ? "Ajustado al contenido" : "Hasta el final de la página";
+            }
+            @Override public String fromString(String value) { return value; }
+        });
         section1.setPromptText("Título del punto 1");
         section2.setPromptText("Título del punto 2");
         section3.setPromptText("Título del punto 3");
@@ -729,9 +770,14 @@ public class PrimaryController {
             activeTemplate.setStartPhotosOnNewPage(b);
             actualizarPreview();
         });
+        photoBorderMode.setOnAction(event -> {
+            activeTemplate.setPhotoBorderMode(photoBorderMode.getValue());
+            actualizarPreview();
+        });
         sectionColor.setOnAction(event -> { activeTemplate.setSectionBackgroundColor(toHex(sectionColor.getValue())); actualizarPreview(); });
         sectionsEditor.getChildren().addAll(section1, section2, section3,
                 startPhotosOnNewPage,
+                new Label("Borde del punto 3:"), photoBorderMode,
                 new HBox(8, new Label("Color de encabezados:"), sectionColor));
 
         VBox headerEditor = new VBox(8);
@@ -1358,22 +1404,52 @@ public class PrimaryController {
 
             for (int fotoIndex = 0; fotoIndex < categoria.getFotografias().size(); fotoIndex++) {
                 FotoEvidencia foto = categoria.getFotografias().get(fotoIndex);
-                Label etiquetaAncho = new Label("Imagen " + (fotoIndex + 1) + " - ancho:");
+                Label etiquetaAncho = new Label("Imagen " + (fotoIndex + 1) + " - tamaño:");
                 etiquetaAncho.setFont(Font.font("System", 10));
 
+                double porcentajeInicial = ReportLayout.photoWidthToPercent(foto.getAncho());
                 Slider sliderAncho = new Slider(
-                        ReportLayout.MIN_PHOTO_WIDTH,
-                        ReportLayout.MAX_PHOTO_WIDTH,
-                        foto.getAncho());
+                        ReportLayout.photoWidthToPercent(ReportLayout.MIN_PHOTO_WIDTH),
+                        100, porcentajeInicial);
                 sliderAncho.setMaxWidth(Double.MAX_VALUE);
+                sliderAncho.setAccessibleText("Porcentaje del tamaño de la imagen");
                 HBox.setHgrow(sliderAncho, Priority.ALWAYS);
+
+                TextField porcentajeAncho = new TextField(formatearPorcentaje(porcentajeInicial));
+                porcentajeAncho.setPrefColumnCount(4);
+                porcentajeAncho.setMaxWidth(68);
+                porcentajeAncho.setAccessibleText("Porcentaje exacto del tamaño de la imagen");
+                porcentajeAncho.setTextFormatter(new TextFormatter<String>(change ->
+                        change.getControlNewText().matches("\\d{0,3}([.,]\\d{0,2})?")
+                                ? change : null));
                 sliderAncho.valueProperty().addListener((obs, oldVal, newVal) -> {
-                    foto.setAncho(newVal.doubleValue());
+                    foto.setAncho(ReportLayout.photoWidthFromPercent(newVal.doubleValue()));
+                    if (!porcentajeAncho.isFocused()) {
+                        porcentajeAncho.setText(formatearPorcentaje(newVal.doubleValue()));
+                    }
                     actualizacionPreviewPendiente = true;
                 });
                 sliderAncho.setOnMouseReleased(event -> {
                     actualizacionPreviewPendiente = false;
                     actualizarPreview();
+                });
+                Runnable aplicarPorcentaje = () -> {
+                    try {
+                        double porcentaje = Double.parseDouble(
+                                porcentajeAncho.getText().replace(',', '.'));
+                        double normalizado = ReportLayout.photoWidthToPercent(
+                                ReportLayout.photoWidthFromPercent(porcentaje));
+                        sliderAncho.setValue(normalizado);
+                        porcentajeAncho.setText(formatearPorcentaje(normalizado));
+                    } catch (NumberFormatException ex) {
+                        porcentajeAncho.setText(formatearPorcentaje(sliderAncho.getValue()));
+                    }
+                    actualizacionPreviewPendiente = false;
+                    actualizarPreview();
+                };
+                porcentajeAncho.setOnAction(event -> aplicarPorcentaje.run());
+                porcentajeAncho.focusedProperty().addListener((obs, teniaFoco, tieneFoco) -> {
+                    if (!tieneFoco) aplicarPorcentaje.run();
                 });
                 sliderAncho.setOnKeyReleased(event -> {
                     actualizacionPreviewPendiente = false;
@@ -1402,7 +1478,8 @@ public class PrimaryController {
                     actualizarPreview();
                 });
 
-                HBox filaAncho = new HBox(8, etiquetaAncho, sliderAncho);
+                HBox filaAncho = new HBox(8, etiquetaAncho, sliderAncho,
+                        porcentajeAncho, new Label("%"));
                 filaAncho.setAlignment(Pos.CENTER_LEFT);
                 HBox accionesFoto = new HBox(8, recortarFoto, restaurarFoto, eliminarFoto);
                 accionesFoto.setAlignment(Pos.CENTER_RIGHT);
@@ -1467,10 +1544,11 @@ public class PrimaryController {
                 + ReportLayout.estimateCategoryTitleHeight(
                 valorOVacio(primeraCategoria.getTitulo()),
                 activeTemplate.getCategoryTitleStyle().getFontSize())
-                + estimarPrimeraFila(primeraCategoria);
+                + estimarAltoMinimoPrimeraFila(primeraCategoria);
         if (activeTemplate.isStartPhotosOnNewPage() || bloqueInicial > estado.espacioDisponible) {
             estado = crearPaginaFotos(true);
         } else {
+            configurarBordeFotosPreview(estado.tabla);
             estado.tabla.getChildren().add(barraSeccionPreview(
                     activeTemplate.getSection3Title()));
             estado.espacioDisponible -= ReportLayout.estimatePhotoSectionHeight(
@@ -1487,7 +1565,7 @@ public class PrimaryController {
             String tituloCategoria = valorOVacio(categoria.getTitulo());
             double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(tituloCategoria,
                     activeTemplate.getCategoryTitleStyle().getFontSize())
-                    + estimarPrimeraFila(categoria);
+                    + estimarAltoMinimoPrimeraFila(categoria);
             if (!paginaNuevaForzada && altoMinimoCategoria > estado.espacioDisponible) {
                 estado = crearPaginaFotos(false);
             }
@@ -1508,6 +1586,7 @@ public class PrimaryController {
                         + "-fx-background-color: #f8fafc; -fx-text-fill: #64748b;");
                 configurarDestinoDrop(zonaVacia, categoriaIndex, 0);
                 estado.tabla.getChildren().add(zonaVacia);
+                estado.espacioDisponible -= 80;
                 continue;
             }
 
@@ -1515,33 +1594,27 @@ public class PrimaryController {
             while (inicioFila < categoria.getFotografias().size()) {
                 int finFila = calcularFinFila(categoria, inicioFila);
                 double[] anchosCelda = calcularAnchosFila(categoria, inicioFila, finFila);
+                double altoMinimoFila = estimarAltoMinimoFila(
+                        categoria, inicioFila, finFila, anchosCelda);
+                if (altoMinimoFila > estado.espacioDisponible) {
+                    estado = crearPaginaFotos(false);
+                }
+                double altoMaximoFila = Math.max(1,
+                        estado.espacioDisponible - ReportLayout.PHOTO_SPACING);
                 List<PhotoPreviewData> datosFila = new ArrayList<>();
-                double altoFilaNatural = 0;
 
                 for (int fotoIndex = inicioFila; fotoIndex < finFila; fotoIndex++) {
                     FotoEvidencia foto = categoria.getFotografias().get(fotoIndex);
                     PhotoPreviewData datos = prepararFotoPreview(
                             foto, fotoIndex, anchosCelda[fotoIndex - inicioFila]);
                     datosFila.add(datos);
-                    altoFilaNatural = Math.max(altoFilaNatural, datos.altoNatural);
                 }
 
-                if (altoFilaNatural > estado.espacioDisponible) {
-                    estado = crearPaginaFotos(false);
-                }
-
-                double altoMaximoFila = Math.max(1,
-                        estado.espacioDisponible - ReportLayout.PHOTO_SPACING);
                 HBox fila = new HBox(ReportLayout.PHOTO_GAP);
                 fila.setPrefWidth(ReportLayout.CONTENT_WIDTH);
                 fila.setMaxWidth(ReportLayout.CONTENT_WIDTH);
                 fila.setAlignment(Pos.TOP_LEFT);
                 fila.setPadding(new Insets(ReportLayout.PHOTO_CELL_PADDING));
-                if (finFila == categoria.getFotografias().size()) {
-                    fila.setStyle("-fx-border-color: transparent transparent black transparent; "
-                            + "-fx-border-width: 0 0 1 0;");
-                }
-
                 double altoFilaReal = 0;
                 for (int columna = 0; columna < datosFila.size(); columna++) {
                     PhotoPreviewData datos = datosFila.get(columna);
@@ -1562,6 +1635,7 @@ public class PrimaryController {
     private PreviewPageState crearPaginaFotos(boolean incluirEncabezado) {
         VBox pagina = crearHojaPaginaWord();
         VBox tablaFotos = crearTablaReportePreview();
+        configurarBordeFotosPreview(tablaFotos);
         pagina.getChildren().add(tablaFotos);
         double espacioDisponible = ReportLayout.CONTENT_HEIGHT;
         if (incluirEncabezado) {
@@ -1574,16 +1648,36 @@ public class PrimaryController {
         return new PreviewPageState(pagina, tablaFotos, espacioDisponible);
     }
 
-    private double estimarPrimeraFila(CategoriaFotografica categoria) {
+    private void configurarBordeFotosPreview(VBox tabla) {
+        tabla.setStyle("-fx-border-color: black; -fx-border-width: 1px;");
+        if (activeTemplate.isPhotoBorderFullPage()) {
+            tabla.setMaxHeight(Double.MAX_VALUE);
+            VBox.setVgrow(tabla, Priority.ALWAYS);
+        } else {
+            VBox.setVgrow(tabla, Priority.NEVER);
+        }
+    }
+
+    private double estimarAltoMinimoPrimeraFila(CategoriaFotografica categoria) {
         if (categoria.getFotografias().isEmpty()) {
             return 80;
         }
         int finFila = calcularFinFila(categoria, 0);
         double[] anchos = calcularAnchosFila(categoria, 0, finFila);
+        return estimarAltoMinimoFila(categoria, 0, finFila, anchos);
+    }
+
+    private double estimarAltoMinimoFila(CategoriaFotografica categoria, int inicio,
+                                          int fin, double[] anchos) {
         double alto = 0;
-        for (int indice = 0; indice < finFila; indice++) {
-            alto = Math.max(alto, prepararFotoPreview(
-                    categoria.getFotografias().get(indice), indice, anchos[indice]).altoNatural);
+        for (int indice = inicio; indice < fin; indice++) {
+            double altoDescripcion = ReportLayout.estimateDescriptionHeight(
+                    categoria.getFotografias().get(indice).getEtiqueta(),
+                    anchos[indice - inicio],
+                    activeTemplate.getPhotoCommentStyle().getFontSize());
+            alto = Math.max(alto, altoDescripcion
+                    + (ReportLayout.PHOTO_CELL_PADDING * 2)
+                    + ReportLayout.MIN_PHOTO_RENDER_HEIGHT);
         }
         return alto + ReportLayout.PHOTO_SPACING;
     }
@@ -1628,8 +1722,8 @@ public class PrimaryController {
         encabezado.setPrefWidth(ReportLayout.CONTENT_WIDTH);
         encabezado.setMaxWidth(ReportLayout.CONTENT_WIDTH);
         encabezado.setPadding(new Insets(8));
-        encabezado.setStyle("-fx-border-color: transparent transparent black transparent; "
-                + "-fx-border-width: 0 0 1 0;");
+        encabezado.setStyle("-fx-border-color: black transparent black transparent; "
+                + "-fx-border-width: 1px 0 1px 0;");
         return encabezado;
     }
 
@@ -1643,13 +1737,7 @@ public class PrimaryController {
         double altoDescripcion = ReportLayout.estimateDescriptionHeight(
                 foto.getEtiqueta(), anchoInterior,
                 activeTemplate.getPhotoCommentStyle().getFontSize());
-        double[] tamanoNatural = ReportLayout.scaleImage(
-                imagen.getWidth(), imagen.getHeight(), foto.getAncho(),
-                anchoInterior,
-                ReportLayout.CONTENT_HEIGHT - altoDescripcion - ReportLayout.PHOTO_SPACING);
-        return new PhotoPreviewData(
-                foto, fotoIndex, imagen, altoDescripcion,
-                tamanoNatural[1] + altoDescripcion + (ReportLayout.PHOTO_CELL_PADDING * 2));
+        return new PhotoPreviewData(foto, fotoIndex, imagen, altoDescripcion);
     }
 
     private VBox crearCeldaFotoPreview(PhotoPreviewData datos, int categoriaIndex,
@@ -1934,6 +2022,13 @@ public class PrimaryController {
         return texto == null ? "" : texto;
     }
 
+    private static String formatearPorcentaje(double porcentaje) {
+        double redondeado = Math.round(porcentaje * 100.0) / 100.0;
+        return redondeado == Math.rint(redondeado)
+                ? Long.toString(Math.round(redondeado))
+                : Double.toString(redondeado);
+    }
+
     private void mostrarAlerta(Alert.AlertType tipo, String titulo, String mensaje) {
         Alert alert = new Alert(tipo);
         aplicarTema(alert);
@@ -1964,16 +2059,14 @@ public class PrimaryController {
         private final int fotoIndex;
         private final Image imagen;
         private final double altoDescripcion;
-        private final double altoNatural;
         private double altoReal;
 
         private PhotoPreviewData(FotoEvidencia foto, int fotoIndex, Image imagen,
-                                 double altoDescripcion, double altoNatural) {
+                                 double altoDescripcion) {
             this.foto = foto;
             this.fotoIndex = fotoIndex;
             this.imagen = imagen;
             this.altoDescripcion = altoDescripcion;
-            this.altoNatural = altoNatural;
         }
     }
 }

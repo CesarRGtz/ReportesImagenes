@@ -8,6 +8,7 @@ public class ReportSummary {
     private String remision;
     private long modifiedAt;
     private int versionCount;
+    private int pendingCount;
     private String lastAuthor;
 
     public String getReportId() { return reportId; }
@@ -24,6 +25,9 @@ public class ReportSummary {
     public void setModifiedAt(long modifiedAt) { this.modifiedAt = modifiedAt; }
     public int getVersionCount() { return versionCount; }
     public void setVersionCount(int versionCount) { this.versionCount = versionCount; }
+    public int getPendingCount() { return pendingCount; }
+    public void setPendingCount(int pendingCount) { this.pendingCount = Math.max(0, pendingCount); }
+    public boolean isPending() { return pendingCount > 0; }
     public String getLastAuthor() { return lastAuthor; }
     public void setLastAuthor(String lastAuthor) { this.lastAuthor = lastAuthor; }
 }

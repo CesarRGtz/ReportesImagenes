@@ -8,6 +8,8 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
+import javafx.scene.Cursor;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -136,33 +138,88 @@ final class ImageEditorDialog {
             redraw.run();
         });
 
+        ComboBox<CropFormat> cropFormat = new ComboBox<>();
+        cropFormat.getItems().addAll(
+                new CropFormat("Libre", 0),
+                new CropFormat("Original", displayWidth / displayHeight),
+                new CropFormat("1:1 (cuadrado)", 1),
+                new CropFormat("4:3", 4.0 / 3), new CropFormat("3:2", 1.5),
+                new CropFormat("16:9", 16.0 / 9), new CropFormat("3:4", 3.0 / 4),
+                new CropFormat("2:3", 2.0 / 3), new CropFormat("9:16", 9.0 / 16));
+        cropFormat.getSelectionModel().selectFirst();
+        cropFormat.setAccessibleText("Proporción del recorte");
+        Slider cropSize = new Slider(5, 100, 80);
+        cropSize.setPrefWidth(160);
+        cropSize.setAccessibleText("Tamaño del recorte");
+        cropSize.setDisable(true);
+        Label cropSizeValue = new Label("80 %");
+        cropSize.valueProperty().addListener((obs, previous, value) -> {
+            cropSizeValue.setText(Math.round(value.doubleValue()) + " %");
+            double ratio = cropFormat.getValue().ratio();
+            if (ratio > 0) resizeCrop(cropSelection, ratio, value.doubleValue() / 100,
+                    displayWidth, displayHeight);
+        });
+        cropFormat.valueProperty().addListener((obs, previous, format) -> {
+            cropTool.setSelected(true);
+            cropSize.setDisable(format.ratio() == 0);
+            if (format.ratio() > 0) resizeCrop(cropSelection, format.ratio(),
+                    cropSize.getValue() / 100, displayWidth, displayHeight);
+        });
+        FlowPane cropOptions = new FlowPane(8, 8, new Label("Formato:"), cropFormat,
+                new Label("Tamaño:"), cropSize, cropSizeValue);
+        cropOptions.disableProperty().bind(cropTool.selectedProperty().not());
+
         Button selectAll = new Button("Usar imagen completa");
-        selectAll.setOnAction(event -> setCrop(cropSelection,
-                0, 0, displayWidth, displayHeight));
+        selectAll.setOnAction(event -> {
+            cropFormat.getSelectionModel().selectFirst();
+            setCrop(cropSelection, 0, 0, displayWidth, displayHeight);
+        });
 
         Label help = new Label(
-                "Elige una herramienta y arrastra sobre la imagen. "
-                        + "Al arrastrar defines el tamaño de la figura.");
+                "Recorte libre: arrastra para seleccionar. Formato fijo: arrastra el marco "
+                        + "para acomodarlo y usa Tamaño para reducirlo o agrandarlo. "
+                        + "Las marcas se dibujan arrastrando sobre la imagen.");
         help.setWrapText(true);
 
         final double[] start = new double[2];
+        final double[] cropOrigin = new double[2];
+        final boolean[] movingCrop = new boolean[1];
         final Node[] temporaryVisual = new Node[1];
+        surface.setOnMouseMoved(event -> surface.setCursor(
+                selectedTool(toolGroup) == Tool.CROP && cropFormat.getValue().ratio() > 0
+                        && cropSelection.contains(event.getX(), event.getY())
+                        ? Cursor.MOVE : Cursor.CROSSHAIR));
         surface.setOnMousePressed(event -> {
             if (event.getButton() != MouseButton.PRIMARY) return;
             start[0] = clamp(event.getX(), 0, displayWidth);
             start[1] = clamp(event.getY(), 0, displayHeight);
             Tool tool = selectedTool(toolGroup);
             if (tool == Tool.CROP) {
-                setCrop(cropSelection, start[0], start[1], 0, 0);
+                movingCrop[0] = cropFormat.getValue().ratio() > 0
+                        && cropSelection.contains(start[0], start[1]);
+                cropOrigin[0] = cropSelection.getX();
+                cropOrigin[1] = cropSelection.getY();
+                if (cropFormat.getValue().ratio() == 0)
+                    setCrop(cropSelection, start[0], start[1], 0, 0);
             } else {
                 removeTemporary(annotationLayer, temporaryVisual);
             }
         });
         surface.setOnMouseDragged(event -> {
+            if (!event.isPrimaryButtonDown()) return;
             double x = clamp(event.getX(), 0, displayWidth);
             double y = clamp(event.getY(), 0, displayHeight);
             Tool tool = selectedTool(toolGroup);
             if (tool == Tool.CROP) {
+                if (cropFormat.getValue().ratio() > 0) {
+                    if (movingCrop[0]) setCrop(cropSelection,
+                            clamp(cropOrigin[0] + x - start[0], 0,
+                                    displayWidth - cropSelection.getWidth()),
+                            clamp(cropOrigin[1] + y - start[1], 0,
+                                    displayHeight - cropSelection.getHeight()),
+                            cropSelection.getWidth(), cropSelection.getHeight());
+                    return;
+                }
                 setCrop(cropSelection, Math.min(start[0], x), Math.min(start[1], y),
                         Math.abs(x - start[0]), Math.abs(y - start[1]));
                 return;
@@ -209,7 +266,7 @@ final class ImageEditorDialog {
         imageScroll.setMaxHeight(MAX_DISPLAY_HEIGHT + 4);
         imageScroll.setStyle("-fx-background-color: transparent;");
 
-        VBox content = new VBox(10, tools, appearance, help, imageScroll, actions);
+        VBox content = new VBox(10, tools, cropOptions, appearance, help, imageScroll, actions);
         content.setPadding(new Insets(2));
 
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -263,6 +320,23 @@ final class ImageEditorDialog {
         crop.setY(y);
         crop.setWidth(width);
         crop.setHeight(height);
+    }
+
+    static void resizeCrop(Rectangle crop, double ratio, double fraction,
+                           double imageWidth, double imageHeight) {
+        double width = Math.min(imageWidth, imageHeight * ratio) * fraction;
+        double height = width / ratio;
+        double centerX = crop.getX() + crop.getWidth() / 2;
+        double centerY = crop.getY() + crop.getHeight() / 2;
+        setCrop(crop, clamp(centerX - width / 2, 0, imageWidth - width),
+                clamp(centerY - height / 2, 0, imageHeight - height), width, height);
+    }
+
+    private record CropFormat(String label, double ratio) {
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private static void removeTemporary(Pane layer, Node[] temporary) {

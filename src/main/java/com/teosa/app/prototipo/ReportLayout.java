@@ -22,10 +22,24 @@ final class ReportLayout {
     static final double MAX_PHOTO_WIDTH = CONTENT_WIDTH - (PHOTO_CELL_PADDING * 2.0);
     static final double PHOTO_CAPTION_HEIGHT = 22.0;
     static final double PHOTO_SPACING = 8.0;
+    static final double PDF_LAYOUT_SAFETY = 4.0;
+    static final double MAX_PHOTO_ROW_HEIGHT = CONTENT_HEIGHT
+            - PHOTO_SECTION_HEIGHT - CATEGORY_TITLE_HEIGHT - PDF_LAYOUT_SAFETY;
     static final double MIN_PHOTO_WIDTH = 100.0;
+    static final double MIN_PHOTO_RENDER_HEIGHT = 24.0;
     static final double DEFAULT_PHOTO_WIDTH = MAX_PHOTO_WIDTH;
 
     private ReportLayout() {
+    }
+
+    static double photoWidthToPercent(double width) {
+        return clamp(width / MAX_PHOTO_WIDTH * 100.0,
+                MIN_PHOTO_WIDTH / MAX_PHOTO_WIDTH * 100.0, 100.0);
+    }
+
+    static double photoWidthFromPercent(double percentage) {
+        double minimum = MIN_PHOTO_WIDTH / MAX_PHOTO_WIDTH * 100.0;
+        return MAX_PHOTO_WIDTH * clamp(percentage, minimum, 100.0) / 100.0;
     }
 
     static double[] scaleImage(double originalWidth, double originalHeight,
@@ -40,17 +54,23 @@ final class ReportLayout {
             return new double[]{0, 0};
         }
 
-        double allowedWidth = Math.min(Math.max(1, maxWidth), MAX_PHOTO_WIDTH);
-        double width = Math.min(Math.max(requestedWidth, MIN_PHOTO_WIDTH), allowedWidth);
-        double height = originalHeight * (width / originalWidth);
+        double minimumScale = MIN_PHOTO_WIDTH / MAX_PHOTO_WIDTH;
+        double requestedScale = clamp(requestedWidth / MAX_PHOTO_WIDTH, minimumScale, 1.0);
 
-        if (height > maxHeight) {
-            double scale = maxHeight / height;
-            width *= scale;
-            height = maxHeight;
-        }
+        // maxWidth normalmente ya representa la fracción reservada por el control
+        // de tamaño. Recuperamos el rectángulo disponible al 100 % para que la
+        // altura y el ancho participen antes de aplicar el porcentaje.
+        double fullWidth = Math.min(MAX_PHOTO_WIDTH,
+                Math.max(1, maxWidth) / requestedScale);
+        double fitScale = Math.min(fullWidth / originalWidth, maxHeight / originalHeight);
+        return new double[]{
+                originalWidth * fitScale * requestedScale,
+                originalHeight * fitScale * requestedScale
+        };
+    }
 
-        return new double[]{width, height};
+    private static double clamp(double value, double minimum, double maximum) {
+        return Math.max(minimum, Math.min(maximum, value));
     }
 
     static double estimateDescriptionHeight(String description) {

@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 public class TemplateDefinition {
+    public static final String PHOTO_BORDER_FULL_PAGE = "FULL_PAGE";
+    public static final String PHOTO_BORDER_CONTENT = "CONTENT";
+
     private String name = "Formato predeterminado";
     private long lastUsedAt;
     private Map<String, FieldDefinition> fields = new LinkedHashMap<>();
@@ -26,6 +29,7 @@ public class TemplateDefinition {
     private String section2Title = "2.  DESCRIPCIÓN DEL TRABAJO:";
     private String section3Title = "3.  REPORTE FOTOGRÁFICO DEL ANTES, DURANTE Y DESPUÉS DE REALIZAR EL TRABAJO:";
     private boolean startPhotosOnNewPage;
+    private String photoBorderMode = PHOTO_BORDER_FULL_PAGE;
     private Map<String, String> presetValues = new LinkedHashMap<>();
 
     public static TemplateDefinition defaults() {
@@ -95,6 +99,17 @@ public class TemplateDefinition {
     public boolean isStartPhotosOnNewPage() { return startPhotosOnNewPage; }
     public void setStartPhotosOnNewPage(boolean startPhotosOnNewPage) {
         this.startPhotosOnNewPage = startPhotosOnNewPage;
+    }
+    public String getPhotoBorderMode() {
+        return PHOTO_BORDER_CONTENT.equals(photoBorderMode)
+                ? PHOTO_BORDER_CONTENT : PHOTO_BORDER_FULL_PAGE;
+    }
+    public void setPhotoBorderMode(String photoBorderMode) {
+        this.photoBorderMode = PHOTO_BORDER_CONTENT.equals(photoBorderMode)
+                ? PHOTO_BORDER_CONTENT : PHOTO_BORDER_FULL_PAGE;
+    }
+    public boolean isPhotoBorderFullPage() {
+        return PHOTO_BORDER_FULL_PAGE.equals(getPhotoBorderMode());
     }
     public Map<String, String> getPresetValues() { if (presetValues == null) presetValues = new LinkedHashMap<>(); return presetValues; }
     public void setPresetValues(Map<String, String> presetValues) { this.presetValues = presetValues; }

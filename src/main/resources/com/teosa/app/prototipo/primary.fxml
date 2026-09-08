@@ -130,7 +130,7 @@
                      <StackPane.margin><Insets left="14.0" top="14.0" /></StackPane.margin>
                      <children>
                         <Button fx:id="btnGenerarPDF" onAction="#handleClicAccion" styleClass="button-primary" text="Generar PDF" />
-                        <Button fx:id="btnGuardarServidor" onAction="#handleGuardarServidor" styleClass="button-secondary" text="Guardar en servidor" />
+                        <Button fx:id="btnGuardarServidor" onAction="#handleGuardarServidor" styleClass="button-secondary" text="Guardar reporte" />
                         <Button fx:id="btnImprimir" onAction="#handleImprimir" styleClass="button-success" text="Imprimir" />
                      </children>
                   </HBox>

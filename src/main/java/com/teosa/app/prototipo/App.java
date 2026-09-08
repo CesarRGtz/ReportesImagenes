@@ -44,8 +44,16 @@ public class App extends Application {
         Rectangle2D area = Screen.getPrimary().getVisualBounds();
         double initialWidth = Math.max(640, Math.min(1400, area.getWidth() - 40));
         double initialHeight = Math.max(500, Math.min(850, area.getHeight() - 40));
-        scene = new Scene(loadFXML("primary"), initialWidth, initialHeight);
+        FXMLLoader primaryLoader = new FXMLLoader(App.class.getResource("primary.fxml"));
+        Parent primaryRoot = primaryLoader.load();
+        PrimaryController primaryController = primaryLoader.getController();
+        scene = new Scene(primaryRoot, initialWidth, initialHeight);
         stage.setScene(scene);
+        stage.setOnCloseRequest(event -> {
+            if (primaryController != null && !primaryController.confirmarCierreSiHayCambios()) {
+                event.consume();
+            }
+        });
         stage.centerOnScreen();
         stage.show();
     }
