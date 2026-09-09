@@ -2,6 +2,8 @@
 param(
     [ValidatePattern('^[A-Za-z0-9 _-]+$')]
     [string]$OutputDirectory = "paquete",
+    [ValidatePattern('^[A-Za-z0-9 _-]+$')]
+    [string]$BuildDirectory = "build-exe",
     [switch]$SoloCompilar
 )
 
@@ -10,7 +12,7 @@ $PSNativeCommandUseErrorActionPreference = $true
 
 $projectRoot = [System.IO.Path]::GetFullPath($PSScriptRoot)
 $jdkBin = "C:\Program Files\Java\jdk-26.0.2.1\bin"
-$buildRoot = Join-Path $projectRoot "build-exe"
+$buildRoot = Join-Path $projectRoot $BuildDirectory
 $classesDir = Join-Path $buildRoot "classes"
 $inputDir = Join-Path $buildRoot "input"
 $outputRoot = Join-Path $projectRoot $OutputDirectory
@@ -100,6 +102,7 @@ Write-Host "Compilando el proyecto..." -ForegroundColor Cyan
     --module-path $modulePath `
     -d $classesDir `
     $sources
+if ($LASTEXITCODE -ne 0) { throw "La compilación falló." }
 
 Copy-Item -Path (Join-Path $projectRoot "src\main\resources\*") `
     -Destination $classesDir -Recurse -Force

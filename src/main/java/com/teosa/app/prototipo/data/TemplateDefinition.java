@@ -15,6 +15,19 @@ public class TemplateDefinition {
     private Map<String, FieldDefinition> fields = new LinkedHashMap<>();
     private List<HeaderLine> headerLines = new ArrayList<>();
     private TextStyle photoCommentStyle = new TextStyle();
+    private TextStyle photoSubtitleStyle = categoryDefaults();
+    private String photoSubtitleBackgroundColor;
+    public String getPhotoSubtitleBackgroundColor() {
+        return photoSubtitleBackgroundColor == null ? "#ffffff" : photoSubtitleBackgroundColor;
+    }
+    public void setPhotoSubtitleBackgroundColor(String value) { photoSubtitleBackgroundColor = value; }
+    public String subtitleBackground(String legacyColor) {
+        return photoSubtitleBackgroundColor == null ? legacyColor : photoSubtitleBackgroundColor;
+    }
+    public TextStyle getPhotoSubtitleStyle() {
+        if (photoSubtitleStyle == null) photoSubtitleStyle = categoryDefaults();
+        return photoSubtitleStyle;
+    }
     private TextStyle categoryTitleStyle = categoryDefaults();
     private String categoryTitleAlignment = "LEFT";
     private String headerImageFileName = "Imagen12.jpg";

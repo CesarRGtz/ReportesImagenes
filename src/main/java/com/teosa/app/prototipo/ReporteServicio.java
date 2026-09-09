@@ -16,6 +16,16 @@ public class ReporteServicio {
     private List<FotoEvidencia> fotografias;
     private List<CategoriaFotografica> categoriasFotograficas;
     private List<CustomFieldValue> customFields;
+    private List<SubtituloFotografico> subtitulosFotograficos = new ArrayList<>();
+    public List<SubtituloFotografico> getSubtitulosFotograficos() {
+        if (subtitulosFotograficos == null) subtitulosFotograficos = new ArrayList<>();
+        return subtitulosFotograficos;
+    }
+    public String subtituloPara(CategoriaFotografica categoria) {
+        return getSubtitulosFotograficos().stream()
+                .filter(s -> s.getId().equals(categoria.getSubtituloId()))
+                .map(SubtituloFotografico::getTitulo).findFirst().orElse("");
+    }
 
     public ReporteServicio(String cliente, String fecha, String area, String remision,
                            String cotizacion, String factura, String datosEquipo, String descripcion) {

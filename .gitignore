@@ -1,6 +1,8 @@
 # Compilacion de Maven y clases Java
 /target/
 /build-exe/
+/build-*/
+/build/
 *.class
 
 # Paquetes y ejecutables generados por jpackage

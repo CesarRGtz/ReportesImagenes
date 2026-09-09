@@ -293,7 +293,7 @@
     -fx-border-color: #dbe3ee;
     -fx-border-radius: 9px;
     -fx-background-radius: 9px;
-    -fx-padding: 10px;
+    -fx-padding: 6px;
 }
 
 .category-index {
@@ -303,7 +303,7 @@
 
 .photo-editor-row {
     -fx-border-color: transparent transparent #e2e8f0 transparent;
-    -fx-padding: 7px 0 8px 8px;
+    -fx-padding: 7px 0 8px 0;
 }
 
 .titled-pane > .title {

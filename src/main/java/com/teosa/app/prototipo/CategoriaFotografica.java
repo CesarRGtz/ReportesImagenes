@@ -5,6 +5,9 @@ import java.util.List;
 
 public class CategoriaFotografica {
     private String titulo;
+    private String subtituloId;
+    public String getSubtituloId() { return subtituloId; }
+    public void setSubtituloId(String value) { subtituloId = value; }
     private boolean saltoPaginaDespues;
     private List<FotoEvidencia> fotografias;
 

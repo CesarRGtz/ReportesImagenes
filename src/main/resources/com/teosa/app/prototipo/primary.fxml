@@ -35,7 +35,7 @@
       <HBox prefHeight="100.0" prefWidth="200.0" styleClass="workspace" BorderPane.alignment="CENTER">
 
          <!-- Columna Izquierda: Formulario -->
-         <ScrollPane fx:id="formScrollPane" fitToWidth="true" hbarPolicy="NEVER" prefWidth="390.0" styleClass="form-scroll" vbarPolicy="AS_NEEDED">
+         <ScrollPane fx:id="formScrollPane" fitToWidth="true" hbarPolicy="AS_NEEDED" minWidth="440.0" prefWidth="480.0" styleClass="form-scroll" vbarPolicy="AS_NEEDED">
             <content>
                <VBox styleClass="sidebar-content">
                   <children>
@@ -94,7 +94,7 @@
                <VBox styleClass="form-card">
                <Label styleClass="section-title" text="Evidencia fotográfica" />
                <Label styleClass="section-help" text="Organiza las imágenes por actividad y agrega comentarios cuando sea necesario." wrapText="true" />
-               <Button maxWidth="Infinity" onAction="#handleAgregarCategoria" styleClass="button-primary" text="Agregar categoría / actividad" />
+               <Button maxWidth="Infinity" onAction="#handleAgregarSubtitulo" styleClass="button-primary" text="Agregar subtítulo al punto 3" />
                <Button maxWidth="Infinity" onAction="#handleAgregarFoto" text="Agregar fotos a la última categoría" />
                <VBox fx:id="photoControls" spacing="8.0" />
                </VBox>
@@ -142,7 +142,7 @@
    </center>
 
    <right>
-      <VBox fx:id="customizationDrawer" managed="false" prefWidth="370.0" styleClass="customization-drawer" visible="false">
+      <VBox fx:id="customizationDrawer" managed="false" minWidth="410.0" prefWidth="440.0" styleClass="customization-drawer" visible="false">
          <children>
             <HBox alignment="CENTER_LEFT" spacing="8.0" styleClass="drawer-header">
                <VBox spacing="1.0">
@@ -152,7 +152,7 @@
                <Region HBox.hgrow="ALWAYS" />
                <Button onAction="#handleTogglePersonalizacion" text="Cerrar" />
             </HBox>
-            <ScrollPane fx:id="customizationScrollPane" fitToWidth="true" hbarPolicy="NEVER" styleClass="drawer-scroll" VBox.vgrow="ALWAYS">
+            <ScrollPane fx:id="customizationScrollPane" fitToWidth="true" hbarPolicy="AS_NEEDED" styleClass="drawer-scroll" VBox.vgrow="ALWAYS">
                <content>
                   <VBox fx:id="customizationContent" styleClass="drawer-content" />
                </content>
