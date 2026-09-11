@@ -95,7 +95,7 @@
                <Label styleClass="section-title" text="Evidencia fotográfica" />
                <Label styleClass="section-help" text="Organiza las imágenes por actividad y agrega comentarios cuando sea necesario." wrapText="true" />
                <Button maxWidth="Infinity" onAction="#handleAgregarSubtitulo" styleClass="button-primary" text="Agregar subtítulo al punto 3" />
-               <Button maxWidth="Infinity" onAction="#handleAgregarFoto" text="Agregar fotos a la última categoría" />
+               <Button maxWidth="Infinity" onAction="#handleAgregarFoto" text="Agregar fotos al último subtítulo" />
                <VBox fx:id="photoControls" spacing="8.0" />
                </VBox>
                   </children>

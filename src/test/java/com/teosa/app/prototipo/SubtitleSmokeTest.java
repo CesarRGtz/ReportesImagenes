@@ -36,7 +36,20 @@ public class SubtitleSmokeTest {
         if (!r.subtituloPara(r.getCategoriasFotograficas().get(1)).equals("SUBTITULO 2"))
             throw new AssertionError("Se perdió la asociación al guardar");
         Path pdf = dir.resolve("subtitulos.pdf");
-        PdfReportGenerator.generar(pdf.toFile(), r, TemplateDefinition.defaults());
+        r.simplificarSubtitulos();
+        if (!r.getSubtitulosFotograficos().isEmpty()
+                || r.getCategoriasFotograficas().size() != 2
+                || !r.getCategoriasFotograficas().get(0).isSaltoPaginaDespues())
+            throw new AssertionError("Migración incompleta");
+        String migrated = JsonSupport.GSON.toJson(r);
+        r.simplificarSubtitulos();
+        if (!migrated.equals(JsonSupport.GSON.toJson(r))) throw new AssertionError("Migración no idempotente");
+        r = JsonSupport.GSON.fromJson(migrated, ReporteServicio.class);
+        if (r.getCategoriasFotograficas().stream().mapToInt(c -> c.getFotografias().size()).sum() != 2)
+            throw new AssertionError("Se perdieron imágenes");
+        TemplateDefinition template = TemplateDefinition.defaults();
+        template.setPhotoSubtitleBackgroundColor("#ffcc00");
+        PdfReportGenerator.generar(pdf.toFile(), r, template);
         try (var doc = Loader.loadPDF(pdf.toFile())) {
             String text = new PDFTextStripper().getText(doc);
             PDFTextStripper firstPage = new PDFTextStripper();
@@ -44,6 +57,11 @@ public class SubtitleSmokeTest {
             if (firstPage.getText(doc).contains("SUBTITULO 2"))
                 throw new AssertionError("El segundo subtítulo no cambió de página");
             var rendered = new org.apache.pdfbox.rendering.PDFRenderer(doc).renderImageWithDPI(0, 72);
+            ImageIO.write(rendered, "png", dir.resolve("plano-1.png").toFile());
+            ImageIO.write(new org.apache.pdfbox.rendering.PDFRenderer(doc).renderImageWithDPI(1, 72),
+                    "png", dir.resolve("plano-2.png").toFile());
+            if (!text.contains("SUBTITULO 1 / CATEGORIA 1"))
+                throw new AssertionError("Los títulos no quedaron en un solo nivel");
             int colored = 0;
             for (int y = 0; y < rendered.getHeight(); y++)
                 for (int x = 50; x < 562; x++) {

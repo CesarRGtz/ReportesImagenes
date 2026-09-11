@@ -46,6 +46,9 @@ public class PdfReportGenerator {
 
     public static void generar(File destino, ReporteServicio reporte,
                                TemplateDefinition template) throws Exception {
+        reporte = com.teosa.app.prototipo.data.JsonSupport.GSON.fromJson(
+                com.teosa.app.prototipo.data.JsonSupport.GSON.toJson(reporte), ReporteServicio.class);
+        reporte.simplificarSubtitulos();
         if (template == null) template = TemplateDefinition.defaults();
         Document documento = new Document(PageSize.LETTER, 50, 50, 45, 45);
         PdfWriter.getInstance(documento, new FileOutputStream(destino));
@@ -55,7 +58,7 @@ public class PdfReportGenerator {
         Font fuenteValor = new Font(Font.HELVETICA, 12, Font.BOLD, Color.BLACK);
         Font fuenteSeccion = new Font(Font.HELVETICA, 12, Font.BOLD, Color.BLACK);
         Font fuenteNormal = new Font(Font.HELVETICA, 12, Font.NORMAL, Color.BLACK);
-        Font fuenteCategoria = crearFuente(template.getCategoryTitleStyle());
+        Font fuenteCategoria = crearFuente(template.getPhotoSubtitleStyle());
         Font fuenteDescripcionFoto = crearFuente(template.getPhotoCommentStyle());
 
         agregarEncabezado(documento, reporte, template);
@@ -94,10 +97,9 @@ public class PdfReportGenerator {
             double bloqueInicial = ReportLayout.estimatePhotoSectionHeight(
                     template.getSection3Title())
                     + ReportLayout.estimateCategoryTitleHeight(primerTitulo,
-                    template.getCategoryTitleStyle().getFontSize())
+                    template.getPhotoSubtitleStyle().getFontSize())
                     + estimarAltoMinimoFilaPdf(primeraCategoria, 0, finInicial,
-                    anchosIniciales, template.getPhotoCommentStyle())
-                    + altoSubtitulo(reporte.subtituloPara(primeraCategoria), template);
+                    anchosIniciales, template.getPhotoCommentStyle());
             if (template.isStartPhotosOnNewPage() || bloqueInicial > espacioDisponible) {
                 documento.add(tablaReporte);
                 documento.newPage();
@@ -113,9 +115,7 @@ public class PdfReportGenerator {
             for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
                 CategoriaFotografica categoria = categorias.get(categoriaIndex);
                 boolean paginaNuevaForzada = categoriaIndex > 0
-                        && (categorias.get(categoriaIndex - 1).isSaltoPaginaDespues()
-                        || SubtituloFotografico.saltoEntre(reporte.getSubtitulosFotograficos(),
-                                categorias.get(categoriaIndex - 1), categoria));
+                        && categorias.get(categoriaIndex - 1).isSaltoPaginaDespues();
                 if (paginaNuevaForzada) {
                     documento.add(tablaReporte);
                     documento.newPage();
@@ -124,15 +124,12 @@ public class PdfReportGenerator {
                     espacioDisponible = ReportLayout.CONTENT_HEIGHT;
                 }
                 String textoCategoria = valorOVacio(categoria.getTitulo());
-                String subtitulo = categoriaIndex == 0 || !java.util.Objects.equals(
-                        categoria.getSubtituloId(), categorias.get(categoriaIndex - 1).getSubtituloId())
-                        ? reporte.subtituloPara(categoria) : "";
                 int primerFin = calcularFinFila(categoria, 0);
                 float[] primerosAnchos = calcularAnchosFila(categoria, 0, primerFin);
                 double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(textoCategoria,
-                        template.getCategoryTitleStyle().getFontSize())
+                        template.getPhotoSubtitleStyle().getFontSize())
                         + estimarAltoMinimoFilaPdf(categoria, 0, primerFin, primerosAnchos,
-                        template.getPhotoCommentStyle()) + altoSubtitulo(subtitulo, template);
+                        template.getPhotoCommentStyle());
                 if (!paginaNuevaForzada && altoMinimoCategoria > espacioDisponible) {
                     documento.add(tablaReporte);
                     documento.newPage();
@@ -140,19 +137,11 @@ public class PdfReportGenerator {
                     configurarBordeTablaFotos(tablaReporte, template.isPhotoBorderFullPage());
                     espacioDisponible = ReportLayout.CONTENT_HEIGHT;
                 }
-                if (!subtitulo.isBlank()) {
-                    agregarTituloCategoria(tablaReporte, subtitulo,
-                            crearFuente(template.getPhotoSubtitleStyle()), "LEFT",
-                            color(template.subtitleBackground(reporte.getSubtitulosFotograficos().stream()
-                                    .filter(s -> s.getId().equals(categoria.getSubtituloId()))
-                                    .map(SubtituloFotografico::getBackgroundColor)
-                                    .findFirst().orElse("#ffffff")), Color.WHITE));
-                    espacioDisponible -= altoSubtitulo(subtitulo, template);
-                }
                 agregarTituloCategoria(tablaReporte, textoCategoria, fuenteCategoria,
-                        template.getCategoryTitleAlignment());
+                        template.getCategoryTitleAlignment(),
+                        color(template.getPhotoSubtitleBackgroundColor(), Color.WHITE));
                 espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(textoCategoria,
-                        template.getCategoryTitleStyle().getFontSize());
+                        template.getPhotoSubtitleStyle().getFontSize());
 
                 int inicio = 0;
                 while (inicio < categoria.getFotografias().size()) {

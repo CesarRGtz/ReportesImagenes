@@ -94,13 +94,13 @@ public class PrimaryController {
     @FXML private Label lblFactura;
 
     private final List<CategoriaFotografica> categorias = new ArrayList<>();
-    private final List<SubtituloFotografico> subtitulos = new ArrayList<>();
     private final Map<Object, Boolean> expansionFotos = new java.util.IdentityHashMap<>();
 
     @FXML private void handleAgregarSubtitulo() {
-        subtitulos.add(new SubtituloFotografico("Nuevo subtítulo"));
-        actualizarControlesFotos();
-        actualizarPreview();
+        CategoriaFotografica nuevo = new CategoriaFotografica("Nuevo subtítulo");
+        categorias.add(nuevo);
+        expansionFotos.put(nuevo, true);
+        actualizarControlesFotos(); actualizarPreview();
     }
 
     private TitledPane desplegableFoto(Object key, String title, Node content) {
@@ -251,30 +251,9 @@ public class PrimaryController {
     }
 
     @FXML
-    private void handleAgregarCategoria() {
-        if (subtitulos.isEmpty()) subtitulos.add(new SubtituloFotografico("Nuevo subtítulo"));
-        agregarCategoriaEn(subtitulos.get(subtitulos.size() - 1));
-    }
-
-    private void agregarCategoriaEn(SubtituloFotografico subtitulo) {
-        CategoriaFotografica nueva = new CategoriaFotografica("Nueva actividad o etapa");
-        nueva.setSubtituloId(subtitulo.getId());
-        categorias.add(nueva);
-        categorias.sort(java.util.Comparator.comparingInt(c -> {
-            for (int i = 0; i < subtitulos.size(); i++)
-                if (subtitulos.get(i).getId().equals(c.getSubtituloId())) return i;
-            return -1;
-        }));
-        expansionFotos.put(subtitulo, true);
-        expansionFotos.put(nueva, true);
-        actualizarControlesFotos();
-        actualizarPreview();
-    }
-
-    @FXML
     private void handleAgregarFoto() {
         if (categorias.isEmpty()) {
-            handleAgregarCategoria();
+            handleAgregarSubtitulo();
         }
         seleccionarFotosParaCategoria(categorias.get(categorias.size() - 1));
     }
@@ -321,10 +300,6 @@ public class PrimaryController {
                 copy.agregarFotografia(photoCopy);
             }
             reporte.agregarCategoriaFotografica(copy);
-        }
-        for (SubtituloFotografico s : subtitulos) {
-            reporte.getSubtitulosFotograficos().add(JsonSupport.GSON.fromJson(
-                    JsonSupport.GSON.toJson(s), SubtituloFotografico.class));
         }
         return reporte;
     }
@@ -545,7 +520,6 @@ public class PrimaryController {
         txtArea.clear(); txtRemision.clear(); txtCotizacion.clear(); txtFactura.clear();
         txtDatosEquipo.clear(); txtDescripcion.clear();
         categorias.clear();
-        subtitulos.clear();
         expansionFotos.clear();
         for (TextField field : customValueControls.values()) field.clear();
         aplicarValoresPreestablecidos(activeTemplate);
@@ -570,9 +544,8 @@ public class PrimaryController {
         txtDatosEquipo.setText(valorSinNulo(report.getDatosEquipo()));
         txtDescripcion.setText(valorSinNulo(report.getDescripcion()));
         categorias.clear();
+        report.simplificarSubtitulos();
         categorias.addAll(report.getCategoriasFotograficas());
-        subtitulos.clear();
-        subtitulos.addAll(report.getSubtitulosFotograficos());
         expansionFotos.clear();
         actualizarEtiquetasYCampos();
         for (CustomFieldValue value : report.getCustomFields()) {
@@ -597,7 +570,7 @@ public class PrimaryController {
                 || !valorSinNulo(txtDescripcion.getText()).isBlank()
                 || customValueControls.values().stream()
                         .anyMatch(field -> !valorSinNulo(field.getText()).isBlank())
-                || !categorias.isEmpty() || !subtitulos.isEmpty();
+                || !categorias.isEmpty();
     }
 
     public boolean confirmarCierreSiHayCambios() {
@@ -903,16 +876,15 @@ public class PrimaryController {
 
         VBox commentEditor = textStyleEditor(activeTemplate.getPhotoCommentStyle(), this::actualizarPreview);
 
-        VBox categoryEditor = textStyleEditor(activeTemplate.getCategoryTitleStyle(), this::actualizarPreview);
+        VBox subtitleEditor = textStyleEditor(activeTemplate.getPhotoSubtitleStyle(), this::actualizarPreview);
         ComboBox<String> categoryAlignment = alignmentCombo(
                 activeTemplate.getCategoryTitleAlignment());
         categoryAlignment.setOnAction(event -> {
             activeTemplate.setCategoryTitleAlignment(categoryAlignment.getValue());
             actualizarPreview();
         });
-        categoryEditor.getChildren().addAll(new Label("Alineación:"), categoryAlignment);
+        subtitleEditor.getChildren().addAll(new Label("Alineación:"), categoryAlignment);
 
-        VBox subtitleEditor = textStyleEditor(activeTemplate.getPhotoSubtitleStyle(), this::actualizarPreview);
         ColorPicker subtitleBackground = colorPicker(activeTemplate.getPhotoSubtitleBackgroundColor());
         subtitleBackground.setOnAction(e -> {
             activeTemplate.setPhotoSubtitleBackgroundColor(toHex(subtitleBackground.getValue()));
@@ -924,7 +896,6 @@ public class PrimaryController {
                 collapsed("Encabezado", headerEditor),
                 collapsed("Campos del formulario", fieldsEditor),
                 collapsed("Títulos y colores de secciones", sectionsEditor),
-                collapsed("Títulos de categorías", categoryEditor),
                 collapsed("Subtítulos del punto 3", subtitleEditor),
                 collapsed("Comentarios de imágenes", commentEditor));
         actualizarEtiquetasYCampos();
@@ -1404,51 +1375,16 @@ public class PrimaryController {
     private void actualizarControlesFotos() {
         double posicionScroll = formScrollPane == null ? 0 : formScrollPane.getVvalue();
         photoControls.getChildren().clear();
-        Map<String, VBox> grupos = new LinkedHashMap<>();
-        for (SubtituloFotografico s : subtitulos) {
-            VBox group = new VBox(8);
-            grupos.put(s.getId(), group);
-            TextField title = new TextField(s.getTitulo());
-            title.setPromptText("Subtítulo del punto 3");
-            Button add = new Button("Agregar categoría aquí");
-            add.getStyleClass().add("button-primary");
-            add.setMaxWidth(Double.MAX_VALUE);
-            add.setOnAction(e -> agregarCategoriaEn(s));
-            Button remove = new Button("Eliminar subtítulo");
-            remove.getStyleClass().add("button-danger");
-            remove.setMaxWidth(Double.MAX_VALUE);
-            remove.setOnAction(e -> {
-                if (!confirmar("Eliminar subtítulo", "¿Eliminar este subtítulo con sus categorías e imágenes?")) return;
-                categorias.removeIf(c -> s.getId().equals(c.getSubtituloId()));
-                subtitulos.remove(s);
-                actualizarControlesFotos(); actualizarPreview();
-            });
-            group.getChildren().addAll(title, add, remove);
-            CheckBox salto = new CheckBox("Comenzar el siguiente subtítulo en una página nueva");
-            salto.setWrapText(true);
-            salto.setSelected(s.isSaltoPaginaDespues());
-            salto.selectedProperty().addListener((o,a,b) -> {
-                s.setSaltoPaginaDespues(b); actualizarPreview();
-            });
-            group.getChildren().add(salto);
-            long count = categorias.stream().filter(c -> s.getId().equals(c.getSubtituloId())).count();
-            TitledPane pane = desplegableFoto(s, s.getTitulo() + " · " + count + " categorías", group);
-            title.textProperty().addListener((o,a,b) -> {
-                s.setTitulo(b); pane.setText(b + " · " + count + " categorías"); actualizarPreview();
-            });
-            photoControls.getChildren().add(pane);
-        }
-
         for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
             CategoriaFotografica categoria = categorias.get(categoriaIndex);
             VBox tarjetaCategoria = new VBox(8);
             tarjetaCategoria.getStyleClass().add("category-card");
 
-            Label tituloControl = new Label("Categoría " + (categoriaIndex + 1));
+            Label tituloControl = new Label("Subtítulo " + (categoriaIndex + 1));
             tituloControl.setFont(Font.font("System", FontWeight.BOLD, 11));
             tituloControl.getStyleClass().add("category-index");
 
-            Button eliminarCategoria = new Button("Eliminar categoría");
+            Button eliminarCategoria = new Button("Eliminar subtítulo");
             eliminarCategoria.getStyleClass().add("button-danger");
             eliminarCategoria.setOnAction(event -> {
                 categorias.remove(categoria);
@@ -1470,41 +1406,20 @@ public class PrimaryController {
             });
 
             CheckBox saltoPagina = new CheckBox(
-                    "Comenzar la siguiente categoría en una página nueva");
+                    "Comenzar el siguiente subtítulo en una página nueva");
+            saltoPagina.setWrapText(true);
             saltoPagina.setSelected(categoria.isSaltoPaginaDespues());
             saltoPagina.selectedProperty().addListener((obs, oldVal, newVal) -> {
                 categoria.setSaltoPaginaDespues(newVal);
                 actualizarPreview();
             });
 
-            Button agregarFotos = new Button("Agregar imágenes a esta categoría");
+            Button agregarFotos = new Button("Agregar imágenes a este subtítulo");
             agregarFotos.setMaxWidth(Double.MAX_VALUE);
             agregarFotos.getStyleClass().add("button-secondary");
             agregarFotos.setOnAction(event -> seleccionarFotosParaCategoria(categoria));
             tarjetaCategoria.getChildren().addAll(
                     encabezadoControl, tituloCategoria, saltoPagina, agregarFotos);
-            ComboBox<SubtituloFotografico> parent = new ComboBox<>(FXCollections.observableArrayList(subtitulos));
-            parent.setPromptText("Asignar a un subtítulo");
-            parent.setMaxWidth(Double.MAX_VALUE);
-            parent.setConverter(new StringConverter<>() {
-                @Override public String toString(SubtituloFotografico s) { return s == null ? "" : s.getTitulo(); }
-                @Override public SubtituloFotografico fromString(String s) { return null; }
-            });
-            subtitulos.stream().filter(s -> s.getId().equals(categoria.getSubtituloId()))
-                    .findFirst().ifPresent(parent::setValue);
-            parent.setOnAction(e -> {
-                if (parent.getValue() == null) return;
-                categoria.setSubtituloId(parent.getValue().getId());
-                categorias.sort(java.util.Comparator.comparingInt(c -> {
-                    for (int i = 0; i < subtitulos.size(); i++)
-                        if (subtitulos.get(i).getId().equals(c.getSubtituloId())) return i;
-                    return -1;
-                }));
-                expansionFotos.put(parent.getValue(), true);
-                actualizarControlesFotos(); actualizarPreview();
-            });
-            tarjetaCategoria.getChildren().add(parent);
-
             for (int fotoIndex = 0; fotoIndex < categoria.getFotografias().size(); fotoIndex++) {
                 FotoEvidencia foto = categoria.getFotografias().get(fotoIndex);
                 Label etiquetaAncho = new Label("Imagen " + (fotoIndex + 1) + " - tamaño:");
@@ -1606,9 +1521,7 @@ public class PrimaryController {
                     categoria.getTitulo() + " · " + categoria.getFotografias().size() + " imágenes", tarjetaCategoria);
             tituloCategoria.textProperty().addListener((o,a,b) -> categoryPane.setText(
                     b + " · " + categoria.getFotografias().size() + " imágenes"));
-            VBox group = grupos.get(categoria.getSubtituloId());
-            if (group == null) photoControls.getChildren().add(categoryPane);
-            else group.getChildren().add(categoryPane);
+            photoControls.getChildren().add(categoryPane);
         }
 
         if (formScrollPane != null) {
@@ -1653,9 +1566,8 @@ public class PrimaryController {
                 activeTemplate.getSection3Title())
                 + ReportLayout.estimateCategoryTitleHeight(
                 valorOVacio(primeraCategoria.getTitulo()),
-                activeTemplate.getCategoryTitleStyle().getFontSize())
-                + estimarAltoMinimoPrimeraFila(primeraCategoria)
-                + altoSubtitulo(subtituloCategoria(primeraCategoria));
+                activeTemplate.getPhotoSubtitleStyle().getFontSize())
+                + estimarAltoMinimoPrimeraFila(primeraCategoria);
         if (activeTemplate.isStartPhotosOnNewPage() || bloqueInicial > estado.espacioDisponible) {
             estado = crearPaginaFotos(true);
         } else {
@@ -1669,40 +1581,24 @@ public class PrimaryController {
         for (int categoriaIndex = 0; categoriaIndex < categorias.size(); categoriaIndex++) {
             CategoriaFotografica categoria = categorias.get(categoriaIndex);
             boolean paginaNuevaForzada = categoriaIndex > 0
-                    && (categorias.get(categoriaIndex - 1).isSaltoPaginaDespues()
-                    || SubtituloFotografico.saltoEntre(subtitulos,
-                            categorias.get(categoriaIndex - 1), categoria));
+                    && categorias.get(categoriaIndex - 1).isSaltoPaginaDespues();
             if (paginaNuevaForzada) {
                 estado = crearPaginaFotos(false);
             }
             String tituloCategoria = valorOVacio(categoria.getTitulo());
-            String subtitulo = categoriaIndex == 0 || !java.util.Objects.equals(
-                    categoria.getSubtituloId(), categorias.get(categoriaIndex - 1).getSubtituloId())
-                    ? subtituloCategoria(categoria) : "";
             double altoMinimoCategoria = ReportLayout.estimateCategoryTitleHeight(tituloCategoria,
-                    activeTemplate.getCategoryTitleStyle().getFontSize())
-                    + estimarAltoMinimoPrimeraFila(categoria) + altoSubtitulo(subtitulo);
+                    activeTemplate.getPhotoSubtitleStyle().getFontSize())
+                    + estimarAltoMinimoPrimeraFila(categoria);
             if (!paginaNuevaForzada && altoMinimoCategoria > estado.espacioDisponible) {
                 estado = crearPaginaFotos(false);
             }
 
-            if (!subtitulo.isBlank()) {
-                Label label = crearTituloCategoriaPreview(subtitulo);
-                aplicarEstiloTexto(label, activeTemplate.getPhotoSubtitleStyle());
-                String fondo = subtitulos.stream().filter(s -> s.getId().equals(categoria.getSubtituloId()))
-                        .map(SubtituloFotografico::getBackgroundColor).findFirst().orElse("#ffffff");
-                label.setStyle(label.getStyle() + "; -fx-background-color: "
-                        + activeTemplate.subtitleBackground(fondo) + ";");
-                label.setMinHeight(altoSubtitulo(subtitulo));
-                estado.tabla.getChildren().add(label);
-                estado.espacioDisponible -= altoSubtitulo(subtitulo);
-            }
             Label encabezadoCategoria = crearTituloCategoriaPreview(tituloCategoria);
             configurarDestinoDrop(
                     encabezadoCategoria, categoriaIndex, categoria.getFotografias().size());
             estado.tabla.getChildren().add(encabezadoCategoria);
             estado.espacioDisponible -= ReportLayout.estimateCategoryTitleHeight(tituloCategoria,
-                    activeTemplate.getCategoryTitleStyle().getFontSize());
+                    activeTemplate.getPhotoSubtitleStyle().getFontSize());
 
             if (categoria.getFotografias().isEmpty()) {
                 Label zonaVacia = new Label("Arrastra imágenes aquí");
@@ -1785,16 +1681,6 @@ public class PrimaryController {
         }
     }
 
-    private String subtituloCategoria(CategoriaFotografica categoria) {
-        return subtitulos.stream().filter(s -> s.getId().equals(categoria.getSubtituloId()))
-                .map(SubtituloFotografico::getTitulo).findFirst().orElse("");
-    }
-
-    private double altoSubtitulo(String titulo) {
-        return titulo.isBlank() ? 0 : ReportLayout.estimateCategoryTitleHeight(
-                titulo, activeTemplate.getPhotoSubtitleStyle().getFontSize());
-    }
-
     private double estimarAltoMinimoPrimeraFila(CategoriaFotografica categoria) {
         if (categoria.getFotografias().isEmpty()) {
             return 80;
@@ -1847,7 +1733,7 @@ public class PrimaryController {
 
     private Label crearTituloCategoriaPreview(String titulo) {
         Label encabezado = new Label(titulo);
-        aplicarEstiloTexto(encabezado, activeTemplate.getCategoryTitleStyle());
+        aplicarEstiloTexto(encabezado, activeTemplate.getPhotoSubtitleStyle());
         String alignment = activeTemplate.getCategoryTitleAlignment();
         encabezado.setAlignment("CENTER".equals(alignment) ? Pos.CENTER
                 : Pos.CENTER_LEFT);
@@ -1859,6 +1745,8 @@ public class PrimaryController {
         encabezado.setPrefWidth(ReportLayout.CONTENT_WIDTH);
         encabezado.setMaxWidth(ReportLayout.CONTENT_WIDTH);
         encabezado.setPadding(new Insets(8));
+        encabezado.setBackground(new Background(new BackgroundFill(
+                Color.web(activeTemplate.getPhotoSubtitleBackgroundColor()), CornerRadii.EMPTY, Insets.EMPTY)));
         encabezado.setStyle("-fx-border-color: black transparent black transparent; "
                 + "-fx-border-width: 1px 0 1px 0;");
         return encabezado;

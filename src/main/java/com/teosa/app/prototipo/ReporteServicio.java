@@ -27,6 +27,26 @@ public class ReporteServicio {
                 .map(SubtituloFotografico::getTitulo).findFirst().orElse("");
     }
 
+    /** Convierte el formato anterior en una lista plana sin perder títulos ni imágenes. */
+    public void simplificarSubtitulos() {
+        for (SubtituloFotografico padre : getSubtitulosFotograficos()) {
+            List<CategoriaFotografica> hijos = getCategoriasFotograficas().stream()
+                    .filter(c -> padre.getId().equals(c.getSubtituloId())).toList();
+            if (hijos.isEmpty()) {
+                CategoriaFotografica vacio = new CategoriaFotografica(padre.getTitulo());
+                vacio.setSaltoPaginaDespues(padre.isSaltoPaginaDespues());
+                getCategoriasFotograficas().add(vacio);
+            } else {
+                for (CategoriaFotografica hijo : hijos) {
+                    if (!padre.getTitulo().isBlank()) hijo.setTitulo(padre.getTitulo() + " / " + hijo.getTitulo());
+                    hijo.setSubtituloId(null);
+                }
+                if (padre.isSaltoPaginaDespues()) hijos.get(hijos.size() - 1).setSaltoPaginaDespues(true);
+            }
+        }
+        getSubtitulosFotograficos().clear();
+    }
+
     public ReporteServicio(String cliente, String fecha, String area, String remision,
                            String cotizacion, String factura, String datosEquipo, String descripcion) {
         this.cliente = cliente;
