@@ -1,13 +1,13 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.CategoriaFotografica;
-import com.teosa.app.prototipo.FotoEvidencia;
-import com.teosa.app.prototipo.PdfReportGenerator;
-import com.teosa.app.prototipo.ReporteServicio;
-import com.teosa.app.prototipo.data.CustomFieldValue;
-import com.teosa.app.prototipo.data.FieldDefinition;
-import com.teosa.app.prototipo.data.HeaderLine;
-import com.teosa.app.prototipo.data.TemplateDefinition;
+import com.teosa.app.prototipo.domain.CategoriaFotografica;
+import com.teosa.app.prototipo.domain.FotoEvidencia;
+import com.teosa.app.prototipo.infrastructure.pdf.PdfReportGenerator;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+import com.teosa.app.prototipo.domain.CustomFieldValue;
+import com.teosa.app.prototipo.domain.FieldDefinition;
+import com.teosa.app.prototipo.domain.HeaderLine;
+import com.teosa.app.prototipo.domain.TemplateDefinition;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;

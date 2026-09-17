@@ -1,0 +1,42 @@
+.dashboard { -fx-background-color: #f3f6fa; -fx-font-family: "Segoe UI"; }
+.dashboard-sidebar { -fx-background-color: #182d4b; -fx-pref-width: 195; -fx-min-width: 195; -fx-padding: 0 14 22 0; }
+.dashboard-branding { -fx-padding: 28 8 20 12; }
+.dashboard-brand { -fx-font-size: 21; -fx-font-weight: bold; -fx-text-fill: white; }
+.dashboard-subbrand, .dashboard-version { -fx-text-fill: #b4cce8; -fx-font-size: 12; }
+.dashboard-version { -fx-padding: 0 0 0 12; }
+.dashboard-nav { -fx-background-color: transparent; -fx-text-fill: white; -fx-background-radius: 0; -fx-border-width: 0; -fx-alignment: center-left; -fx-padding: 11 10; -fx-font-size: 14; }
+.dashboard-nav.selected, .dashboard-nav:hover { -fx-background-color: #224876; }
+.dashboard-content { -fx-padding: 28; }
+.dashboard-heading { -fx-padding: 0 0 15 0; }
+.dashboard-title { -fx-font-size: 20; -fx-font-weight: bold; -fx-text-fill: #10213b; }
+.dashboard-status { -fx-font-size: 13; -fx-text-fill: #139b4c; }
+.dashboard-card { -fx-background-color: white; -fx-border-color: #cddbeb; -fx-border-radius: 2; -fx-background-radius: 2; -fx-padding: 18; }
+.dashboard-card-title { -fx-font-size: 15; -fx-font-weight: bold; -fx-text-fill: #10213b; }
+.dashboard-detail { -fx-font-size: 13; -fx-text-fill: #415d86; }
+.dashboard-actions { -fx-padding: 8 0 0 0; }
+.dashboard-access { -fx-pref-height: 110; -fx-background-radius: 7; -fx-border-radius: 7; -fx-border-width: 1; -fx-padding: 16 10; -fx-cursor: hand; }
+.dashboard-access-title { -fx-font-size: 22; -fx-font-weight: bold; -fx-text-fill: white; }
+.reports-access { -fx-background-color: #225995; -fx-border-color: #1768b0; }
+.reports-access:hover { -fx-background-color: #1b4c84; }
+.quotes-access { -fx-background-color: #119b45; -fx-border-color: #18b557; }
+.quotes-access:hover { -fx-background-color: #0a8338; }
+.dashboard-access:focused { -fx-border-color: #0c2343; -fx-border-width: 2; }
+.dashboard-scroll, .dashboard-scroll > .viewport { -fx-background-color: transparent; -fx-padding: 0; }
+
+#server-settings-view .tab-pane > .tab-header-area > .tab-header-background { -fx-background-color: transparent; }
+#server-settings-view .tab-pane .tab { -fx-background-color: #e8eef7; -fx-background-radius: 6 6 0 0; -fx-padding: 8 16; -fx-border-width: 0; }
+#server-settings-view .tab-pane .tab:selected { -fx-background-color: white; -fx-border-color: #ccd9eb; -fx-border-width: 1 1 0 1; -fx-border-radius: 6 6 0 0; }
+#server-settings-view .tab-pane .tab-label { -fx-text-fill: #24446c; -fx-font-size: 13; }
+#server-settings-view .tab-pane .tab:selected .tab-label { -fx-text-fill: #4338ca; -fx-font-weight: bold; }
+#server-settings-view .tab-pane > .tab-content-area { -fx-background-color: white; -fx-border-color: #ccd9eb; -fx-border-width: 1; -fx-background-radius: 0 6 6 6; }
+
+.dashboard-access { -fx-text-fill: white; }
+
+.activity-row { -fx-padding: 4 0 10 0; -fx-border-color: transparent transparent #edf1f7 transparent; -fx-border-width: 0 0 1 0; }
+.activity-icon { -fx-background-radius: 9; }
+.activity-report { -fx-background-color: #eaf2fc; }
+.activity-quote { -fx-background-color: #e8f7ed; }
+.activity-title { -fx-font-size: 13; -fx-font-weight: bold; }
+.activity-report-title { -fx-text-fill: #225995; }
+.activity-quote-title { -fx-text-fill: #12833f; }
+.activity-date { -fx-font-size: 12; -fx-text-fill: #64748b; }

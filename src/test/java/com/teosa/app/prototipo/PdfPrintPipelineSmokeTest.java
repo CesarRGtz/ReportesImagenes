@@ -1,6 +1,11 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.data.TemplateDefinition;
+import com.teosa.app.prototipo.domain.CategoriaFotografica;
+import com.teosa.app.prototipo.domain.FotoEvidencia;
+import com.teosa.app.prototipo.infrastructure.pdf.PdfReportGenerator;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+
+import com.teosa.app.prototipo.domain.TemplateDefinition;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;

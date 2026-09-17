@@ -374,3 +374,36 @@
 .scroll-bar .thumb:hover {
     -fx-background-color: #64748b;
 }
+
+
+/* Server landing screen shares the document editors' colors and typography. */
+.home-scroll, .home-scroll > .viewport, .home-canvas {
+    -fx-background-color: #eef2f7;
+}
+.home-content { -fx-padding: 28px 20px; }
+.home-title { -fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #172033; }
+.home-help { -fx-font-size: 13px; -fx-text-fill: #64748b; }
+.module-card {
+    -fx-background-color: white;
+    -fx-background-radius: 12px;
+    -fx-border-color: #dbe3ee;
+    -fx-border-radius: 12px;
+    -fx-padding: 24px;
+}
+.module-title { -fx-font-size: 19px; -fx-font-weight: bold; -fx-text-fill: #172033; }
+.module-mark {
+    -fx-background-color: #eef2ff;
+    -fx-background-radius: 10px;
+    -fx-text-fill: #4f46e5;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 17px;
+}
+
+/* Fixed-size vector icons follow each button text color and disabled state. */
+.app-icon { -fx-padding: 0; }
+
+/* A soft tint identifies the next empty scope without competing with actions. */
+.text-area.new-scope-input { -fx-border-color: #a5b4d8; }
+.text-area.new-scope-input .content { -fx-background-color: #f3f6fc; }
+.text-area.new-scope-input:focused { -fx-border-color: #818cf8; }

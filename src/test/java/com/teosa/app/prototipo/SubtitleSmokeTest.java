@@ -1,6 +1,15 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.data.*;
+import com.teosa.app.prototipo.domain.CategoriaFotografica;
+import com.teosa.app.prototipo.domain.FotoEvidencia;
+import com.teosa.app.prototipo.infrastructure.pdf.PdfReportGenerator;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+import com.teosa.app.prototipo.domain.SubtituloFotografico;
+import com.teosa.app.prototipo.infrastructure.persistence.JsonSupport;
+import com.teosa.app.prototipo.domain.TemplateDefinition;
+
+import com.teosa.app.prototipo.domain.*;
+import com.teosa.app.prototipo.infrastructure.persistence.*;
 import java.nio.file.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;

@@ -17,7 +17,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="700.0" prefWidth="1200.0" styleClass="app-shell" stylesheets="@app.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.teosa.app.prototipo.PrimaryController">
+<BorderPane maxHeight="Infinity" maxWidth="Infinity" minHeight="0.0" minWidth="0.0" prefHeight="700.0" prefWidth="1200.0" styleClass="app-shell" stylesheets="@app.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.teosa.app.prototipo.presentation.PrimaryController">
 
    <top>
       <HBox alignment="CENTER_LEFT" spacing="9.0" styleClass="app-topbar">
@@ -27,7 +27,6 @@
             <Label styleClass="brand-subtitle" text="Gestión de servicios y evidencia" />
          </VBox>
          <Region HBox.hgrow="ALWAYS" />
-         <Button fx:id="btnConfigurarEquipo" onAction="#handleConfigurarEquipo" styleClass="mode-button" text="Configuración del equipo" />
       </HBox>
    </top>
 
@@ -98,6 +97,7 @@
                <Button maxWidth="Infinity" onAction="#handleAgregarFoto" text="Agregar fotos al último subtítulo" />
                <VBox fx:id="photoControls" spacing="8.0" />
                </VBox>
+               <VBox fx:id="signatureControls" styleClass="form-card" spacing="8.0" />
                   </children>
                </VBox>
             </content>

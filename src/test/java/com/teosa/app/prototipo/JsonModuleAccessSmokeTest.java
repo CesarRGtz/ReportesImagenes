@@ -1,6 +1,10 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.data.JsonSupport;
+import com.teosa.app.prototipo.domain.CategoriaFotografica;
+import com.teosa.app.prototipo.domain.FotoEvidencia;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+
+import com.teosa.app.prototipo.infrastructure.persistence.JsonSupport;
 
 public class JsonModuleAccessSmokeTest {
     public static void main(String[] args) {

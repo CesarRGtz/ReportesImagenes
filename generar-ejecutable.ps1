@@ -1,9 +1,11 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^[A-Za-z0-9 _-]+$')]
-    [string]$OutputDirectory = "paquete",
+    [string]$OutputDirectory = "Ejecutables",
     [ValidatePattern('^[A-Za-z0-9 _-]+$')]
     [string]$BuildDirectory = "build-exe",
+    [ValidateSet("All", "Reports", "Quotations", "Server")]
+    [string]$Mode = "All",
     [switch]$SoloCompilar
 )
 
@@ -16,7 +18,11 @@ $buildRoot = Join-Path $projectRoot $BuildDirectory
 $classesDir = Join-Path $buildRoot "classes"
 $inputDir = Join-Path $buildRoot "input"
 $outputRoot = Join-Path $projectRoot $OutputDirectory
-$applicationDir = Join-Path $outputRoot "Reportes TEOSA"
+$applications = @(
+    @{ Mode = "Reports"; Name = "Reportes TEOSA"; Launcher = "ReportsLauncher" }
+    @{ Mode = "Quotations"; Name = "Cotizaciones TEOSA"; Launcher = "QuotationsLauncher" }
+    @{ Mode = "Server"; Name = "Servidor TEOSA"; Launcher = "ServerLauncher" }
+) | Where-Object { $Mode -eq "All" -or $_.Mode -eq $Mode }
 
 if (-not (Test-Path -LiteralPath (Join-Path $projectRoot "pom.xml"))) {
     throw "Este script debe permanecer en la carpeta principal del proyecto."
@@ -73,7 +79,18 @@ foreach ($dependency in $dependencies) {
 # Solo elimina resultados generados anteriormente dentro de este proyecto.
 $generatedPaths = @($buildRoot)
 if (-not $SoloCompilar) {
-    $generatedPaths += $applicationDir
+    foreach ($application in $applications) { $generatedPaths += Join-Path $outputRoot $application.Name }
+}
+# Comprobar bloqueos antes de eliminar cualquier carpeta de una entrega anterior.
+foreach ($candidate in $generatedPaths) {
+    $checkedPath = [IO.Path]::GetFullPath($candidate)
+    if (-not $checkedPath.StartsWith($projectRoot + "\", [StringComparison]::OrdinalIgnoreCase)) { throw "Ruta no válida: $checkedPath" }
+    if (Test-Path -LiteralPath $checkedPath) {
+        foreach ($file in (Get-ChildItem -LiteralPath $checkedPath -Recurse -File)) {
+            try { $handle = [IO.File]::Open($file.FullName, 'Open', 'Read', 'None'); $handle.Dispose() }
+            catch { throw "Hay una aplicación abierta o un archivo bloqueado: $($file.FullName). Cierra la aplicación o utiliza otra carpeta de salida." }
+        }
+    }
 }
 foreach ($generatedPath in $generatedPaths) {
     $fullPath = [System.IO.Path]::GetFullPath($generatedPath)
@@ -124,24 +141,21 @@ $applicationJar = Join-Path $inputDir "app-prototipo.jar"
     --main-class com.teosa.app.prototipo.Launcher `
     -C $classesDir .
 
-Write-Host "Generando el ejecutable autocontenido..." -ForegroundColor Cyan
-& (Join-Path $jdkBin "jpackage.exe") `
-    --type app-image `
-    --dest $outputRoot `
-    --name "Reportes TEOSA" `
-    --input $inputDir `
-    --main-jar "app-prototipo.jar" `
-    --main-class "com.teosa.app.prototipo.Launcher" `
-    --java-options "--enable-native-access=ALL-UNNAMED" `
-    --app-version "1.0.0" `
-    --vendor "TEOSA"
-
-$executable = Join-Path $applicationDir "Reportes TEOSA.exe"
-if (-not (Test-Path -LiteralPath $executable)) {
-    throw "El empaquetado terminó sin producir el ejecutable esperado."
+foreach ($application in $applications) {
+    Write-Host "Generando $($application.Name)..." -ForegroundColor Cyan
+    & (Join-Path $jdkBin "jpackage.exe") `
+        --type app-image `
+        --dest $outputRoot `
+        --name $application.Name `
+        --input $inputDir `
+        --main-jar "app-prototipo.jar" `
+        --main-class "com.teosa.app.prototipo.$($application.Launcher)" `
+        --java-options "--enable-native-access=ALL-UNNAMED" `
+        --app-version "2.0.0" `
+        --vendor "TEOSA"
+    if ($LASTEXITCODE -ne 0) { throw "Falló el empaquetado de $($application.Name)." }
+    $executable = Join-Path (Join-Path $outputRoot $application.Name) "$($application.Name).exe"
+    if (-not (Test-Path -LiteralPath $executable)) { throw "No se produjo $executable" }
+    Write-Host $executable -ForegroundColor Green
 }
-
-Write-Host ""
-Write-Host "Ejecutable generado correctamente:" -ForegroundColor Green
-Write-Host $executable -ForegroundColor Green
-Write-Host "Distribuye toda la carpeta 'Reportes TEOSA', no solamente el archivo .exe."
+Write-Host "Distribuye la carpeta completa de cada aplicación, no solamente su archivo .exe."

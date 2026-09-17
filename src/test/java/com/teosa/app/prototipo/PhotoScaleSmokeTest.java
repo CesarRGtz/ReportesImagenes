@@ -1,5 +1,7 @@
 package com.teosa.app.prototipo;
 
+import com.teosa.app.prototipo.domain.ReportLayout;
+
 public class PhotoScaleSmokeTest {
     public static void main(String[] args) {
         double fullWidth = ReportLayout.MAX_PHOTO_WIDTH;

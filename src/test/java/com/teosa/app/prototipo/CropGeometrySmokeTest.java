@@ -1,5 +1,7 @@
 package com.teosa.app.prototipo;
 
+import com.teosa.app.prototipo.presentation.ImageEditorDialog;
+
 import javafx.scene.shape.Rectangle;
 
 public class CropGeometrySmokeTest {

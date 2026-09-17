@@ -36,3 +36,7 @@ nbproject/private/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+/Ejecutables/
+/*.lnk
+/Ejecutables-*/

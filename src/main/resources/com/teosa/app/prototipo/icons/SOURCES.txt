@@ -1,0 +1,38 @@
+Google Material Symbols Outlined, optical size 48.
+Copyright Google LLC. Licensed under Apache 2.0 (LICENSE.txt).
+Original paths retained; application scales and recolors the SVG paths.
+Library: https://fonts.google.com/icons
+
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/summarize/materialsymbolsoutlined/summarize_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/request_quote/materialsymbolsoutlined/request_quote_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/home/materialsymbolsoutlined/home_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/settings/materialsymbolsoutlined/settings_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/save/materialsymbolsoutlined/save_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/picture_as_pdf/materialsymbolsoutlined/picture_as_pdf_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/print/materialsymbolsoutlined/print_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/history/materialsymbolsoutlined/history_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/add/materialsymbolsoutlined/add_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/edit/materialsymbolsoutlined/edit_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/delete/materialsymbolsoutlined/delete_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/search/materialsymbolsoutlined/search_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/refresh/materialsymbolsoutlined/refresh_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/arrow_back/materialsymbolsoutlined/arrow_back_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/arrow_upward/materialsymbolsoutlined/arrow_upward_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/arrow_downward/materialsymbolsoutlined/arrow_downward_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/close/materialsymbolsoutlined/close_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/photo_library/materialsymbolsoutlined/photo_library_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/add_photo_alternate/materialsymbolsoutlined/add_photo_alternate_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/draw/materialsymbolsoutlined/draw_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/content_copy/materialsymbolsoutlined/content_copy_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/check/materialsymbolsoutlined/check_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/folder_open/materialsymbolsoutlined/folder_open_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/description/materialsymbolsoutlined/description_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/group/materialsymbolsoutlined/group_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/format_list_bulleted/materialsymbolsoutlined/format_list_bulleted_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/tune/materialsymbolsoutlined/tune_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/restart_alt/materialsymbolsoutlined/restart_alt_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/zoom_in/materialsymbolsoutlined/zoom_in_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/zoom_out/materialsymbolsoutlined/zoom_out_48px.svg
+https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/crop/materialsymbolsoutlined/crop_48px.svg
+
+report_detail.svg and quote_detail.svg: custom application vector artwork inspired by the user-provided document references; not Google Material Symbols.

@@ -1,0 +1,997 @@
+[
+  {
+    "kind": "CLIENT",
+    "text": "COBRE DEL MAYO",
+    "code": "1"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MECANICA TEK",
+    "code": "10"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GIBHER CONSTRUCTORES",
+    "code": "100098"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA MALICHITA",
+    "code": "10010"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PROTEINAS MARINAS Y HARINAS DE SINALOA",
+    "code": "10011"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SINUHE DARIO PEREO RIVAS",
+    "code": "10015"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CARLOS ALFONSO MARTINEZ GONZALEZ",
+    "code": "10020"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PEDRO PONCE JOCOBI",
+    "code": "10021"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PROFESIONALES REPARADORES DE EQUIPO PESADO",
+    "code": "10022"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GERARDO ELIAS ANGULO",
+    "code": "10023"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "UNION DE USUARIOS PRODUCTORES AGRICOLAS DE LA UNIDAD DE RIEG",
+    "code": "10024"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CONSTRUCTORA JILSA",
+    "code": "10026"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ROBERTO ALMADA VALENZUELA",
+    "code": "10027"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SELECTA DE GUAYMAS",
+    "code": "10029"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MONTAJE Y SERVICIO ESPECIALIZADO VELAZCO",
+    "code": "1003"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CARLOS PEDRO GUTIERREZ VALENZUELA",
+    "code": "10030"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RAMIRO AGUILAR OCHOA",
+    "code": "10032"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RENE MARTINEZ GRACIA",
+    "code": "10039"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRUPO INDUSTRIAL ROES",
+    "code": "10040"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA DE JESUS ACUÑA SANCHEZ",
+    "code": "10041"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MELVA RAFAELA LUNA CORONADO",
+    "code": "10042"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRUPO RAMIREZ ZAZUETA",
+    "code": "10045"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "DYNARESOURCE DE MEXICO",
+    "code": "10049"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "DYNAMICS PRECISION MEXICO",
+    "code": "10050"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "NALLELY SOBEYDA VILLA MORALES",
+    "code": "10052"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "INDUSTRIAS SONMEX",
+    "code": "10053"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GEZ ACUICOLA",
+    "code": "10055"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MOTEL ORO NEGRO",
+    "code": "10056"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "L C PROYECTOS Y CONSTRUCCIONES",
+    "code": "10060"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MUNICIPIO DE ALAMOS",
+    "code": "10061"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "HOTEL CALIFA",
+    "code": "10062"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RIGOBERTO YEPIZ VALENZUELA",
+    "code": "10063"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FRIGORIFICO AGROPECUARIA SONORENSE",
+    "code": "10069"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "NAVOJOA PLAZA",
+    "code": "10079"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "EIN INGENIERIA ELECTRICA",
+    "code": "10082"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MAYRA LUZ URIAS VELASQUEZ",
+    "code": "10085"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CRUZ GUADALUPE ROSAS ENRIQUEZ",
+    "code": "10086"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA ELENA BARRERAS BASTIDAS",
+    "code": "10090"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SALSAS RIO MAYO",
+    "code": "10091"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CEMIX MEXICO",
+    "code": "10093"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RAMONA ALICIA RODRIGUEZ REYES",
+    "code": "10095"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGRIBRANDS PURINA MEXICO",
+    "code": "10096"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "HURTADO Y MEDINA CONSTRUCCIONES",
+    "code": "10097"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JUAN JOSE GUTIERREZ PADILLA",
+    "code": "1035"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PROMOTORA Y ADMINISTRADORA DEL NOROESTE",
+    "code": "106"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA GALDINA SORIA RIVERA",
+    "code": "1076"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MAPCO MATERIALES SA DE CV",
+    "code": "108"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PÚBLICO EN GENERAL",
+    "code": "1080"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FIERRO Y LAMINA DE OCCIDENTE",
+    "code": "1097"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PACIFICO INDUSTRIAL",
+    "code": "11"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "LA LOMA DE FELIX",
+    "code": "1100"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GUAYMAS PROTEIN COMPANY",
+    "code": "1120"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGRICOLA CRU & VAME",
+    "code": "1130"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "COEUR MEXICANA",
+    "code": "115"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MINAR GRUPO CONSTRUCTOR SA DE CV",
+    "code": "117"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CESAR ALONSO AVILA GUTIERREZ",
+    "code": "120"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MIGUEL ANGEL VARGAS OCAMPO",
+    "code": "1200"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SERVICIOS ELECTROMECANICOS ROCIO",
+    "code": "12001"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SIR ENERGY",
+    "code": "1203"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGNICO SONORA SA DE CV",
+    "code": "122"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "EGV SERI INFRAESTRUCTURA",
+    "code": "124"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CELULOSA MOLDEADA DEL PACIFICO",
+    "code": "13"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ALIMENTOS KOWI SA DE CV",
+    "code": "133"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ARCELORMITTAL MEXICO",
+    "code": "134"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SARDINAS DE SONORA",
+    "code": "136"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "URREA PAREDES",
+    "code": "137"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FRANCISCO JAVIER MINJARES ALVAREZ",
+    "code": "138"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CENAIDA CRUZ DELGADO",
+    "code": "139"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRAVA Y ARENA DE TESIA SA DE CV",
+    "code": "141"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CASTOR PRODUKTE S A P I DE CV",
+    "code": "149"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CONSTRUCTORA AUROMAR",
+    "code": "1500"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "INDUCALCIO",
+    "code": "153"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CEMEX CONCRETOS SA DE CV",
+    "code": "155"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "EXPLORACIONES MINERAS E INGENIERIA SA DE CV",
+    "code": "156"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JUAN MIGUEL LAMAS LOPEZ",
+    "code": "159"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MINERA MONTERDE SA DE RL DE CV",
+    "code": "161"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGRICOLA CUATROROSAS SPR DE RL",
+    "code": "162"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "WEIR MINERALS MEXICO SA DE CV",
+    "code": "163"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FERROCARRIL MEXICANO SA DE CV",
+    "code": "164"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GR2 DEL NOROESTE SA DE CV",
+    "code": "165"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CRIVICAL SA DE CV",
+    "code": "166"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JUAN MANUEL LOPEZ ROCHIN",
+    "code": "168"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "UNIVERSIDAD ESTATAL DE SONORA",
+    "code": "169"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SIST PARA ELDESARROLLO INTEGRAL DE LAFAM DEL MPIO DE NAVOJOA",
+    "code": "170"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA CONSUELO LARA BELTRAN",
+    "code": "171"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GAMALIEL GUTIERREZ VELDUCEA",
+    "code": "172"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SOLDADORAS INDUSTRIALES INFRA",
+    "code": "174"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "DIINPEC SA DE CV",
+    "code": "175"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "EMPRESAS MATCO SA DE CV",
+    "code": "176"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FERNANDO FIERRO FUENTES",
+    "code": "178"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FRANCISCO ENRIQUE MONTAÑO RUIZ",
+    "code": "179"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RIVERA GAS",
+    "code": "183"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "APPLIED MEXICO, S.A. DE CV",
+    "code": "185"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CASA LEY",
+    "code": "187"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA AMPARAN",
+    "code": "189"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "BUNGE COMERCIAL SA DE CV",
+    "code": "195"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SERVICIOS Y ASESORIAS INDUSTRIALES Y AGRICOLAS SA DE CV",
+    "code": "199"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "NAVIERA Y PESQUERA DEL PACIFICO",
+    "code": "2"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "DEL CENTRO",
+    "code": "20"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JESUS ANTONIO GUTIERREZ MENDIVIL",
+    "code": "2000"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ESTHER MARGARITA MENDIVIL GIL",
+    "code": "20004"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA LERMA CHIN",
+    "code": "20007"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SIC DEL NOROESTE",
+    "code": "2001"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GREEN GEOLOGY",
+    "code": "20010"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRUPO NAVCI",
+    "code": "20011"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRUPO BIOFUEL HP",
+    "code": "20012"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "YESENIA BARRON RUIZ",
+    "code": "20013"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRUPO PORCINO ROSHER",
+    "code": "20016"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "INGENIERIA INDUSTRIAL Y AUTOMATIZACION RMR",
+    "code": "20017"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PERFECTO TOLEDO ZAPATA",
+    "code": "20018"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "INDUSTRIAS BARDA",
+    "code": "2002"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "EXHIBIDORA MEXICANA CINEPOLIS",
+    "code": "20020"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "OCTAVIO ERUBIEL CONTRERAS MONTES",
+    "code": "20022"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "LAURA ELENA ESQUER FELIX",
+    "code": "20026"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SERVICIOS EDUCATIVOS DEL ESTADO DE SONORA",
+    "code": "2003"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "TRANSPORTES LOS CUPIZ",
+    "code": "20030"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GILBERTO ORTEGA ESCALANTE",
+    "code": "20035"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CUEVAS G",
+    "code": "20039"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "REGA REFACCIONARIA",
+    "code": "2004"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGRICOLA SAN MARIO",
+    "code": "2005"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JESUS DANIEL DOMINGUEZ VALENZUELA",
+    "code": "2006"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FAUSTO JAZIEL GARCIA ALCANTAR",
+    "code": "2007"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARCOS RAFAEL RAMIREZ RODRIGUEZ",
+    "code": "20083"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JUAN CARLOS PINALES TRUJILLO",
+    "code": "2010"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ALGAS Y BIODERIVADOS MARINOS",
+    "code": "2012"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA RIO MAYO",
+    "code": "2015"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CIRCULO LLANTERO",
+    "code": "2018"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "IVAN ALEJANDRO MORENO BOJORQUEZ",
+    "code": "2020"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA ENGRACIA DOMINGUEZ MENDIVIL",
+    "code": "2021"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MOLINOS INDUSTRIALES DE CALCIO",
+    "code": "203"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "TECNO REPARADORES Y REFACCIONES",
+    "code": "2030"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA MALU",
+    "code": "204"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MANUEL ALBERTO CHAVEZ AYALA",
+    "code": "208"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MINERA GUAYACANES",
+    "code": "209"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SYEEF PROYECTOS INDUSTRIALES DEL NOROESTE",
+    "code": "210"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CIPRIA MINERALIA",
+    "code": "211"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "COMPAÑIA CERVECERA DE COAHUILA, S.A. DE C.V.",
+    "code": "213"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ROGELIO QUIROZ VEGA",
+    "code": "214"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "VIMIFOS",
+    "code": "215"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SONORA AGROPECUARIA",
+    "code": "217"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "COMPAÑIA CERVECERA DE OBREGON",
+    "code": "218"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "TALLER ELECTRICO OR-VAL S.A. DE C.V.",
+    "code": "219"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGRICOLA MAGU SA DE CV",
+    "code": "22"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "BACHOCO",
+    "code": "220"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "BG ALMACENES Y SERVICIOS",
+    "code": "221"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "IMSS HOSPITAL GENERAL NACOZARI 23",
+    "code": "222"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FLOTA BARDA,S.A. DE C.V.",
+    "code": "224"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "TBT TOPOLOBAMPO III",
+    "code": "225"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA ALCEMA",
+    "code": "226"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CELULOSA Y CORRUGADOS DE SONORA",
+    "code": "227"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARTHA MARTINEZ MONTES",
+    "code": "228"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MOLINERA DE MEXICO",
+    "code": "230"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ARTURO LUNA RIVERA",
+    "code": "232"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SERCONOMAR",
+    "code": "236"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CONSYRSA S.A. DE C.V.",
+    "code": "237"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "KOFANOR DE MEXICO",
+    "code": "238"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ORTIZ CONSTRUCCIONES Y PROYECTOS S.A.",
+    "code": "239"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "INGENIERIA EN SERVICIOS INTEGRALES DE ENERGIA S.A. DE C.V.",
+    "code": "240"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SEMILLAS Y FIBRAS INTERNACIONALES",
+    "code": "241"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RIGOBERTO HERRERA ACEVES",
+    "code": "242"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "OPERADORA DE ECOSISTEMAS",
+    "code": "243"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "LA CACHARAMBA",
+    "code": "244"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PRODUCTORA DE ALIMENTOS LA ATANASIA",
+    "code": "246"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "DONJORGE SOCIEDAD DE PRODUCCION RURAL DE RL",
+    "code": "247"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "INDUSTRIAS CA DEL MAYO SA DE CV",
+    "code": "250"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JULIA OJEDA VALENZUELA",
+    "code": "251"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "HIELERA DEL MAYO",
+    "code": "252"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AIRESISTEMAS DE OCCIDENTE",
+    "code": "253"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "JUANA GUADALUPE ESPINOZA HERRERA",
+    "code": "254"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "PEDRO ALBERTO DE LA ROSA GONZALEZ",
+    "code": "255"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRUPO AGRICOLA BZ",
+    "code": "259"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "LA HUERTA INDUSTRIAL MINERALS",
+    "code": "260"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRANJA SIERRA OBSCURA",
+    "code": "270"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CALDERAS DEL NORTE SA DE CV",
+    "code": "271"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ROSA ERMILA URIBE ESTRADA",
+    "code": "273"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA GUADALUPE FLORES VAZQUEZ",
+    "code": "275"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA DEL ROSARIO FELIX MUÑOZ",
+    "code": "276"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CONSTRUCTORA AUROMAR SA DE CV",
+    "code": "282"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "FELIX GABRIEL PADRON VALDES",
+    "code": "283"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "RICH TERMINAL MEX",
+    "code": "286"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "IRMA GUADALUPE ACOSTA MANZANAREZ",
+    "code": "289"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SJS CONSTRUCCIONES",
+    "code": "290"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ORGANISMO COORDINADOR DE LAS UNIVERSIDADES PARA EL BIENESTAR",
+    "code": "293"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "VICTOR PABLOS PADILLA",
+    "code": "296"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MOLINERA LA ESPIGA",
+    "code": "297"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "BI METALS MEXICO S DE RL DE CV",
+    "code": "3"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA ERNESTINA",
+    "code": "300"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "HIELERA RUIZ",
+    "code": "301"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CARLOS RUFINO ROCHA SOTO",
+    "code": "31"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "ANABEL MARTINEZ CORDOVA",
+    "code": "310"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MIE MX DE SONORA",
+    "code": "350"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SAN HUMBERTO DE LOS CHIRRIONES",
+    "code": "390"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "AGROPECUARIA MOCTEZUMA AZ",
+    "code": "396"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "MARIA FERNANDA FIERRO AGUILAR",
+    "code": "398"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CARLOS ALBERTO RIVERA CAZARES",
+    "code": "399"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "LUIS ENRIQUE MONTOYA MARQUEZ",
+    "code": "400"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "GRANOS LA MACARENA",
+    "code": "41"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "SERVICIOS FRONTERA COBRE DEL MAYO SA DE CV",
+    "code": "43"
+  },
+  {
+    "kind": "CLIENT",
+    "text": "CIA CONSTRUCTORA PERICU'ES SA DE CV",
+    "code": "44"
+  }
+]

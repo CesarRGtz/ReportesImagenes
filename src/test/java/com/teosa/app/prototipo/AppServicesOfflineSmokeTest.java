@@ -1,7 +1,19 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.data.*;
-import com.teosa.app.prototipo.network.*;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+import com.teosa.app.prototipo.domain.AppConfig;
+import com.teosa.app.prototipo.domain.ReportSnapshot;
+import com.teosa.app.prototipo.domain.ReportSummary;
+import com.teosa.app.prototipo.domain.SaveResponse;
+import com.teosa.app.prototipo.domain.TemplateDefinition;
+import com.teosa.app.prototipo.domain.VersionSummary;
+import com.teosa.app.prototipo.infrastructure.network.LocalReportServer;
+import com.teosa.app.prototipo.infrastructure.network.ServerStorage;
+
+import com.teosa.app.prototipo.domain.*;
+import com.teosa.app.prototipo.infrastructure.persistence.*;
+import com.teosa.app.prototipo.infrastructure.network.*;
+import com.teosa.app.prototipo.application.AppServices;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 
@@ -17,7 +29,7 @@ public class AppServicesOfflineSmokeTest {
         AppConfig config = new AppConfig();
         config.setRole(AppConfig.Role.SECONDARY);
         config.setServerUrl("http://127.0.0.1:" + port);
-        AppServices services = AppServices.get();
+        AppServices services = com.teosa.app.prototipo.AppContext.services();
         services.initialize(config);
         try {
             ReportSnapshot snapshot = new ReportSnapshot();

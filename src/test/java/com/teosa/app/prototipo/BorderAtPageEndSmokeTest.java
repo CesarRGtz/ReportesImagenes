@@ -1,6 +1,12 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.data.TemplateDefinition;
+import com.teosa.app.prototipo.domain.CategoriaFotografica;
+import com.teosa.app.prototipo.domain.FotoEvidencia;
+import com.teosa.app.prototipo.infrastructure.pdf.PdfReportGenerator;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+import com.teosa.app.prototipo.domain.ReportLayout;
+
+import com.teosa.app.prototipo.domain.TemplateDefinition;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;

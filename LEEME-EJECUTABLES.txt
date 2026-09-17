@@ -1,0 +1,62 @@
+ABRIR DESDE EL PROYECTO: usa los accesos directos Servidor TEOSA, Reportes TEOSA o Cotizaciones TEOSA.
+Las aplicaciones completas están en Ejecutables-presentacion. Conserva sus carpetas app y runtime.
+
+TEOSA - REPORTES, COTIZACIONES Y SERVIDOR
+
+1. En el equipo servidor, abrir Servidor TEOSA/Servidor TEOSA.exe.
+   El menú principal permite abrir Reportes fotográficos o Cotizaciones.
+   Dentro de cada sistema, Menú principal vuelve a la pantalla de elección.
+   Esta opción aparece solamente en el servidor.
+   Cada panel conserva su documento en edición al cambiar al otro.
+
+2. En la secundaria de reportes, abrir Reportes TEOSA/Reportes TEOSA.exe.
+
+3. En la secundaria de cotizaciones, abrir Cotizaciones TEOSA/Cotizaciones TEOSA.exe.
+
+Copiar siempre la carpeta completa de cada aplicación, con app y runtime.
+No es necesario instalar Java por separado.
+
+Las secundarias guardan versiones localmente y las suben automáticamente cuando
+encuentran el servidor. Se puede consultar Historial sin conexión para abrir las
+versiones guardadas en ese equipo. Para sincronizar cotizaciones, utilizar el
+servidor nuevo incluido en esta entrega.
+
+El descubrimiento conserva los puertos del sistema anterior: TCP 43821 y UDP 43822.
+Las computadoras deben estar en la misma red y el servidor debe permitir la conexión.
+
+En Cotización, capturar folio y cliente, agregar partidas y elegir la condición
+de pago. Cada partida admite descripción, alcances, cantidad entera y precio.
+IVA y total se calculan automáticamente. El IVA inicia en 16% y se puede cambiar.
+
+Personalizar permite editar encabezados, fuentes, títulos y nombres de campos.
+Los campos mantienen su orden y comparten un solo color. Los cambios se muestran
+automáticamente en la vista previa, conservando los paneles abiertos y el scroll.
+También permite guardar/eliminar plantillas y sus valores preestablecidos.
+La vista previa muestra el PDF. PDF exporta el documento e Imprimir abre el diálogo
+de impresión. Exportar PDF no equivale a guardar una versión en el historial.
+
+Los reportes anteriores y sus cambios de firmas se conservan. El historial y las
+plantillas de cotización se muestran separados de los de reportes fotográficos.
+
+Datos de reportes/servidor: Documents/TEOSA Reportes.
+Datos de la secundaria de cotizaciones: Documents/TEOSA Reportes/Cotizaciones.
+No se eliminan datos anteriores al iniciar estas aplicaciones.
+
+CATÁLOGOS COMPARTIDOS Y ALCANCES
+El campo Cliente ofrece hasta cuatro coincidencias por nombre o código.
+Se incluyen 199 clientes del archivo CLIENTES TEOSA PARA COTIZACION.xlsx.
+Al guardar cotización, generar PDF o imprimir, el sistema identifica datos nuevos
+y pregunta cuáles deseas agregar al catálogo compartido. Puedes continuar sin agregarlos.
+Sin servidor se conserva una copia local pendiente, que se sube al reconectar.
+Instalar esta versión tanto en el servidor como en los equipos de cotización.
+Los alcances se enumeran A01, A02... en la columna Clave, dentro de cada partida.
+Escribe en el renglón vacío para añadir el siguiente alcance, sin botones adicionales.
+Desglosar costo por alcance muestra los importes dentro de la descripción del PDF.
+La suma de alcances determina el costo unitario; la cantidad de la partida
+se multiplica por ese costo para calcular el importe y los totales.
+Los costos se guardan en cada cotización; el catálogo reutiliza las descripciones.
+
+CONFIGURACIÓN DEL SERVIDOR
+Reportes: Plantillas. Cotización: Clientes, Alcances y Plantillas.
+Permite crear, consultar, editar y eliminar datos. Las plantillas predeterminadas
+se conservan. Los cambios del catálogo no alteran documentos ya guardados.

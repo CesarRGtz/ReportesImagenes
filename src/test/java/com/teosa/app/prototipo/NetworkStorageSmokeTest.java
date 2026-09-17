@@ -1,15 +1,15 @@
 package com.teosa.app.prototipo;
 
-import com.teosa.app.prototipo.CategoriaFotografica;
-import com.teosa.app.prototipo.FotoEvidencia;
-import com.teosa.app.prototipo.ReporteServicio;
-import com.teosa.app.prototipo.data.AssetManager;
-import com.teosa.app.prototipo.data.ReportSnapshot;
-import com.teosa.app.prototipo.data.ReportTransfer;
-import com.teosa.app.prototipo.data.TemplateDefinition;
-import com.teosa.app.prototipo.network.HttpReportClient;
-import com.teosa.app.prototipo.network.LocalReportServer;
-import com.teosa.app.prototipo.network.ServerStorage;
+import com.teosa.app.prototipo.domain.CategoriaFotografica;
+import com.teosa.app.prototipo.domain.FotoEvidencia;
+import com.teosa.app.prototipo.domain.ReporteServicio;
+import com.teosa.app.prototipo.infrastructure.persistence.AssetManager;
+import com.teosa.app.prototipo.domain.ReportSnapshot;
+import com.teosa.app.prototipo.domain.ReportTransfer;
+import com.teosa.app.prototipo.domain.TemplateDefinition;
+import com.teosa.app.prototipo.infrastructure.network.HttpReportClient;
+import com.teosa.app.prototipo.infrastructure.network.LocalReportServer;
+import com.teosa.app.prototipo.infrastructure.network.ServerStorage;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
