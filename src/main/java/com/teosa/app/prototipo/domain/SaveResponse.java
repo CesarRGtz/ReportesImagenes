@@ -1,6 +1,9 @@
 package com.teosa.app.prototipo.domain;
 
 public class SaveResponse {
+    private String quotationFolio;
+    public String getQuotationFolio(){return quotationFolio;}
+    public void setQuotationFolio(String value){quotationFolio=value;}
     private boolean success;
     private boolean queued;
     private String reportId;

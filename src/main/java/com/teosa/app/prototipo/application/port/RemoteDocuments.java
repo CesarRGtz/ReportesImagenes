@@ -7,6 +7,7 @@ public interface RemoteDocuments {
  default void saveCatalogEntry(CatalogEntry entry) throws IOException {throw new IOException("Actualiza el servidor para compartir catálogos.");}
  default void updateCatalogEntry(String id,CatalogEntry entry) throws IOException {throw new IOException("Actualiza el servidor para editar catálogos.");}
  default void deleteCatalogEntry(String id) throws IOException {throw new IOException("Actualiza el servidor para eliminar datos.");}
+ default QuotationFolio quotationFolio(String id,boolean allocate)throws IOException {throw new IOException("Actualiza el servidor para numerar cotizaciones.");}
  boolean health(); String getBaseUrl(); void setBaseUrl(String url);
  SaveResponse saveReport(ReportTransfer transfer) throws IOException;
  List<ReportSummary> listReports(String query) throws IOException;

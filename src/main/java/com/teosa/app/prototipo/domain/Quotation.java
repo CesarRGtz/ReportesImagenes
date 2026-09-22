@@ -6,6 +6,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 public final class Quotation {
  public static final List<String> PAYMENT_OPTIONS=List.of("CONTADO","A 30 DIAS","A CONVENIR","A CREDITO");
+ private boolean automaticFolio,folioAssigned;
+ public boolean isAutomaticFolio(){return automaticFolio;} public void setAutomaticFolio(boolean value){automaticFolio=value;}
+ public boolean isFolioAssigned(){return folioAssigned;} public void setFolioAssigned(boolean value){folioAssigned=value;}
  private Map<String,String> values=new LinkedHashMap<>();
  private List<QuotationLine> lines=new ArrayList<>();
  private String introduction="Atendiendo su amable solicitud estamos enviando cotización de los servicios requeridos, para nosotros es un placer poner nuestra compañía a su servicio.";

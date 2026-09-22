@@ -165,11 +165,9 @@ public class PdfReportGenerator {
                         configurarBordeTablaFotos(tablaReporte, template.isPhotoBorderFullPage());
                         espacioDisponible = ReportLayout.CONTENT_HEIGHT;
                     }
-                    double altoDisponibleFila = Math.max(1,
-                            espacioDisponible - ReportLayout.PHOTO_SPACING);
+                    double altoDisponibleFila = ReportLayout.MAX_PHOTO_ROW_HEIGHT;
                     double altoFila = estimarAltoFilaPdf(categoria, inicio, fin, anchos,
-                            template.getPhotoCommentStyle(), altoDisponibleFila)
-                            + ReportLayout.PHOTO_SPACING;
+                            template.getPhotoCommentStyle(), altoDisponibleFila);
 
                     agregarFilaFotos(tablaReporte, categoria, inicio, fin, anchos,
                             fuenteDescripcionFoto, template.getPhotoCommentStyle(),
@@ -185,9 +183,7 @@ public class PdfReportGenerator {
                 && categorias.get(categorias.size() - 1).isSaltoPaginaDespues();
         double encabezadoPendiente = categorias.isEmpty()
                 ? ReportLayout.estimatePhotoSectionHeight(template.getSection3Title()) : 0;
-        if (saltoFirmas || espacioFirmas < CuadroFirmas.alto(reporte.getFirmas())
-                + CuadroFirmas.ESPACIO + encabezadoPendiente
-                || (categorias.isEmpty() && template.isStartPhotosOnNewPage())) {
+        if (saltoFirmas || (categorias.isEmpty() && template.isStartPhotosOnNewPage())) {
             documento.add(tablaReporte);
             documento.newPage();
             tablaReporte = crearTablaReporte();
@@ -200,7 +196,7 @@ public class PdfReportGenerator {
         tablaReporte.setTotalWidth((float) ReportLayout.CONTENT_WIDTH);
         tablaReporte.calculateHeights(true);
         double restante = writer.getVerticalPosition(true) - documento.bottom() - tablaReporte.getTotalHeight();
-        if (restante < CuadroFirmas.alto(reporte.getFirmas()) + CuadroFirmas.ESPACIO) {
+        if (restante < CuadroFirmas.alto(reporte.getFirmas()) + CuadroFirmas.MARGEN) {
             documento.add(tablaReporte);
             documento.newPage();
             tablaReporte = crearTablaReporte();
@@ -209,8 +205,10 @@ public class PdfReportGenerator {
         }
         PdfPCell contenedorFirmas = new PdfPCell(firmas);
         contenedorFirmas.setPadding((float) CuadroFirmas.MARGEN);
-        contenedorFirmas.setFixedHeight((float) (restante - 0.1));
-        contenedorFirmas.setVerticalAlignment(Element.ALIGN_BOTTOM);
+        double margenSuperior = CuadroFirmas.margenSuperior(restante, reporte.getFirmas());
+        contenedorFirmas.setPaddingTop((float) margenSuperior);
+        contenedorFirmas.setMinimumHeight((float) (CuadroFirmas.alto(reporte.getFirmas()) + CuadroFirmas.MARGEN + margenSuperior));
+        contenedorFirmas.setVerticalAlignment(Element.ALIGN_TOP);
         contenedorFirmas.setBorder(Rectangle.NO_BORDER);
         tablaReporte.addCell(contenedorFirmas);
         documento.add(tablaReporte);
@@ -289,10 +287,7 @@ public class PdfReportGenerator {
             Image imagen = Image.getInstance(foto.getRuta());
             double altoDescripcion = ReportLayout.estimateDescriptionHeight(
                     foto.getEtiqueta(), ancho, estiloDescripcion.getFontSize());
-            double[] tamano = ReportLayout.scaleImage(
-                    imagen.getWidth(), imagen.getHeight(), foto.getAncho(), ancho,
-                    altoDisponibleFila - altoDescripcion
-                            - (ReportLayout.PHOTO_CELL_PADDING * 2));
+            double[] tamano = ReportLayout.pagePhotoSize(imagen.getWidth(), imagen.getHeight(), foto.getAncho());
             alto = Math.max(alto, tamano[1] + altoDescripcion
                     + (ReportLayout.PHOTO_CELL_PADDING * 2));
         }
@@ -302,16 +297,10 @@ public class PdfReportGenerator {
     private static double estimarAltoMinimoFilaPdf(
             CategoriaFotografica categoria, int inicio, int fin, float[] anchos,
             TextStyle estiloDescripcion) {
-        double alto = 0;
-        for (int indice = inicio; indice < fin; indice++) {
-            double altoDescripcion = ReportLayout.estimateDescriptionHeight(
-                    categoria.getFotografias().get(indice).getEtiqueta(),
-                    anchos[indice - inicio], estiloDescripcion.getFontSize());
-            alto = Math.max(alto, altoDescripcion
-                    + (ReportLayout.PHOTO_CELL_PADDING * 2)
-                    + ReportLayout.MIN_PHOTO_RENDER_HEIGHT);
-        }
-        return alto + ReportLayout.PHOTO_SPACING;
+        try {
+            return estimarAltoFilaPdf(categoria, inicio, fin, anchos, estiloDescripcion,
+                    ReportLayout.MAX_PHOTO_ROW_HEIGHT);
+        } catch (Exception ex) { throw new IllegalArgumentException("No se pudo cargar la imagen", ex); }
     }
 
     private static void agregarFilaFotos(
@@ -464,12 +453,18 @@ public class PdfReportGenerator {
         return celda;
     }
 
+    private static double anchoFoto(FotoEvidencia foto) {
+        try {
+            Image image = Image.getInstance(foto.getRuta());
+            return ReportLayout.pagePhotoSize(image.getWidth(), image.getHeight(), foto.getAncho())[0];
+        } catch (Exception ex) { throw new IllegalArgumentException("No se pudo cargar la imagen", ex); }
+    }
+
     private static int calcularFinFila(CategoriaFotografica categoria, int inicio) {
         double anchoUsado = 0;
         int fin = inicio;
         while (fin < categoria.getFotografias().size()) {
-            double ancho = ReportLayout.photoCellWidth(
-                    categoria.getFotografias().get(fin).getAncho());
+            double ancho = anchoFoto(categoria.getFotografias().get(fin));
             double separacion = fin > inicio ? ReportLayout.PHOTO_GAP : 0;
             if (fin > inicio && anchoUsado + separacion + ancho > ReportLayout.MAX_PHOTO_WIDTH) {
                 break;
@@ -484,8 +479,7 @@ public class PdfReportGenerator {
             CategoriaFotografica categoria, int inicio, int fin) {
         float[] anchos = new float[fin - inicio];
         for (int indice = inicio; indice < fin; indice++) {
-            anchos[indice - inicio] = (float) ReportLayout.photoCellWidth(
-                    categoria.getFotografias().get(indice).getAncho());
+            anchos[indice - inicio] = (float) anchoFoto(categoria.getFotografias().get(indice));
         }
         return anchos;
     }
@@ -516,10 +510,7 @@ public class PdfReportGenerator {
         double anchoInterior = anchoCelda;
         double altoDescripcion = ReportLayout.estimateDescriptionHeight(
                 foto.getEtiqueta(), anchoInterior, fuenteDescripcion.getSize());
-        double[] tamano = ReportLayout.scaleImage(
-                imagen.getWidth(), imagen.getHeight(), foto.getAncho(), anchoInterior,
-                altoDisponibleFila - altoDescripcion
-                        - (ReportLayout.PHOTO_CELL_PADDING * 2));
+        double[] tamano = ReportLayout.pagePhotoSize(imagen.getWidth(), imagen.getHeight(), foto.getAncho());
         imagen.scaleAbsolute((float) tamano[0], (float) tamano[1]);
         imagen.setAlignment(Element.ALIGN_LEFT);
 

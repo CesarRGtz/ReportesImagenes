@@ -1,5 +1,5 @@
 ABRIR DESDE EL PROYECTO: usa los accesos directos Servidor TEOSA, Reportes TEOSA o Cotizaciones TEOSA.
-Las aplicaciones completas están en Ejecutables-presentacion. Conserva sus carpetas app y runtime.
+Las aplicaciones completas están en Ejecutables-nombres-fotos. Conserva sus carpetas app y runtime.
 
 TEOSA - REPORTES, COTIZACIONES Y SERVIDOR
 
@@ -24,7 +24,7 @@ servidor nuevo incluido en esta entrega.
 El descubrimiento conserva los puertos del sistema anterior: TCP 43821 y UDP 43822.
 Las computadoras deben estar en la misma red y el servidor debe permitir la conexión.
 
-En Cotización, capturar folio y cliente, agregar partidas y elegir la condición
+En Cotización, el folio se completa automáticamente. Capturar cliente, agregar partidas y elegir la condición
 de pago. Cada partida admite descripción, alcances, cantidad entera y precio.
 IVA y total se calculan automáticamente. El IVA inicia en 16% y se puede cambiar.
 
@@ -60,3 +60,16 @@ CONFIGURACIÓN DEL SERVIDOR
 Reportes: Plantillas. Cotización: Clientes, Alcances y Plantillas.
 Permite crear, consultar, editar y eliminar datos. Las plantillas predeterminadas
 se conservan. Los cambios del catálogo no alteran documentos ya guardados.
+
+FOLIOS Y PLANTILLAS DE COTIZACIÓN
+Los folios usan TEOaa-001, con el año del servidor y un contador anual compartido.
+Al guardar, generar PDF o imprimir por primera vez se confirma el número; las
+versiones posteriores conservan el mismo. Los números asignados no se reutilizan.
+Sin conexión se utiliza un folio TEOaa-PEND-...; al subirlo, el servidor confirma
+o corrige el número. La secundaria actualiza su copia y avisa del folio confirmado.
+Un PDF emitido sin conexión conserva el folio provisional hasta volver a generarlo.
+Actualizar tanto el servidor como las secundarias para usar esta numeración.
+Las plantillas se consultan al iniciar y cada cinco segundos. Una actualización
+del formato seleccionado se aplica automáticamente si no se está personalizando
+ni hay cambios locales de formato. Los datos capturados se conservan.
+Al eliminar la plantilla en uso, se cierra Personalizar y se aplica la predeterminada.

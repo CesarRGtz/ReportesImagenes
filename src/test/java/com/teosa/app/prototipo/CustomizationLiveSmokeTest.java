@@ -97,6 +97,9 @@ public final class CustomizationLiveSmokeTest {
                 ((ColorPicker)drawer[0].lookup("#format-total-color")).setValue(Color.web("#ccddaa"));
                 ((ColorPicker)drawer[0].lookup("#format-table-color")).setValue(Color.web("#ddeeff"));
                 CheckBox bold=(CheckBox)drawer[0].lookup("#content-text").lookup(".check-box");bold.setSelected(true);
+                expand(drawer[0],"Pie de página");
+                ((TextField)drawer[0].lookup("#format-footer-address")).setText("Dirección editada en vivo");
+                ((TextField)drawer[0].lookup("#format-footer-contact")).setText("Contacto editado en vivo");
                 try{screenshot(stage[0],"personalizacion-cotizacion.png");}catch(Exception ex){throw new RuntimeException(ex);}
             });count=output.renders.get();waitRender(output,count);
             check(output.last.getSection1Title().equals("DETALLE DEL SERVICIO")&&output.last.getPhotoCommentStyle().isBold(),"Section and font changes are not live");
@@ -123,6 +126,7 @@ public final class CustomizationLiveSmokeTest {
             });
             TemplateDefinition roundtrip=codec.copy(output.last,TemplateDefinition.class);check(roundtrip.getFields().get("cliente").getBackgroundColor().equals("#aaccee"),"Shared color not persisted");
             check(roundtrip.getTotalBackgroundColor().equals("#ccddaa"),"Total color not persisted");
+            check(roundtrip.getQuotationFooterAddress().equals("Dirección editada en vivo")&&roundtrip.getQuotationFooterContact().equals("Contacto editado en vivo"),"Footer not updated live or persisted");
             fx(()->{
                 quote[0].dispose();
                 try{

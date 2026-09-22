@@ -32,6 +32,7 @@ import java.security.MessageDigest;
 public class ServerStorage {
     private final Path root;
     private final CatalogStore catalog;
+    private final QuotationNumberStore quotationNumbers;
     private final Path reports;
     private final Path templates;
 
@@ -42,6 +43,8 @@ public class ServerStorage {
         this.templates = this.root.resolve("plantillas");
         Files.createDirectories(reports);
         Files.createDirectories(templates);
+        quotationNumbers=new QuotationNumberStore(this.root.resolve("folios-cotizacion.json"));
+        quotationNumbers.initialize(listReports(""));
     }
 
     public List<CatalogEntry> listCatalog() throws IOException {return catalog.list();}
@@ -49,10 +52,17 @@ public class ServerStorage {
 
     public synchronized void updateCatalogEntry(String id,CatalogEntry entry) throws IOException {catalog.update(id,entry);backupIfNeeded();}
     public synchronized void deleteCatalogEntry(String id) throws IOException {catalog.delete(id);backupIfNeeded();}
+    public synchronized QuotationFolio quotationFolio(String id,boolean allocate)throws IOException{
+        return quotationNumbers.number(normalizeId(id),LocalDate.now().getYear(),allocate);
+    }
     public synchronized SaveResponse saveReport(ReportTransfer transfer) throws IOException {
         ReportSnapshot snapshot = transfer.getSnapshot();
         if (snapshot == null || !snapshot.hasDocument()) throw new IOException("Reporte vacío");
         String reportId = normalizeId(snapshot.getReportId());
+        if(snapshot.getQuotation()!=null && snapshot.getQuotation().isAutomaticFolio()){
+            QuotationFolio folio=quotationFolio(reportId,true);
+            snapshot.getQuotation().setValue("folio",folio.value());snapshot.getQuotation().setFolioAssigned(true);
+        }
         Path reportDir = reports.resolve(reportId);
         Path versionsDir = reportDir.resolve("versiones");
         Files.createDirectories(versionsDir);
@@ -79,6 +89,7 @@ public class ServerStorage {
         response.setSuccess(true);
         response.setReportId(reportId);
         response.setVersion(version);
+        if(snapshot.getQuotation()!=null)response.setQuotationFolio(snapshot.getQuotation().value("folio"));
         response.setMessage("Reporte guardado como versión " + version);
         return response;
     }

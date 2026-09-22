@@ -71,7 +71,7 @@ public final class DesktopSmokeTest {
                         TextField client=(TextField)photo.lookup("#txtCliente");client.setText("Cliente conservado");
                         leaveHome(shell,false);leaveHome(shell,true);
                         click(shell,"open-quotations");Parent quote=(Parent)shell.getCenter();
-                        TextField folio=(TextField)quote.lookup("#quotation-folio");folio.setText("COT-PERSISTE");
+                        TextField folio=(TextField)quote.lookup("#quotation-contacto");folio.setText("COT-PERSISTE");
                         leaveHome(shell,false);leaveHome(shell,true);click(shell,"open-reports");
                         if(shell.getCenter()!=photo || !client.getText().equals("Cliente conservado"))throw new AssertionError("Perdió los datos del reporte");
                         if(photo.lookupAll("#return-home").size()!=1)throw new AssertionError("Botón de inicio duplicado");

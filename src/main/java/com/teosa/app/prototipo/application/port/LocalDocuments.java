@@ -5,6 +5,9 @@ import java.util.List;
 public interface LocalDocuments {
  String enqueue(ReportTransfer transfer) throws IOException;
  int count();
+ default List<QuotationFolioChange> folioChanges()throws IOException{return List.of();}
+ default void acknowledgeFolioChange(String reportId,String current)throws IOException{}
+
  SaveResponse saveLocallyAndTryUpload(ReportTransfer transfer,RemoteDocuments remote) throws IOException;
  void flush(RemoteDocuments remote) throws IOException;
  List<ReportSummary> listReports(String query) throws IOException;

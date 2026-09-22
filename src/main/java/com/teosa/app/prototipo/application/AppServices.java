@@ -101,6 +101,14 @@ public final class AppServices {
         return catalog.pendingCount()>0;
     }
 
+    public List<QuotationFolioChange> folioChanges()throws IOException{return queue.folioChanges();}
+    public void acknowledgeFolioChange(QuotationFolioChange change)throws IOException{queue.acknowledgeFolioChange(change.reportId(),change.current());}
+    public QuotationFolio quotationFolio(String id,boolean allocate){
+        try{return requireClient().quotationFolio(id,allocate);}catch(IOException offline){
+            String value=String.format(java.util.Locale.ROOT,"TEO%02d-PEND-%s",java.time.LocalDate.now().getYear()%100,id.substring(0,Math.min(8,id.length())).toUpperCase(java.util.Locale.ROOT));
+            return new QuotationFolio(value,false);
+        }
+    }
     public SaveResponse saveReport(ReportSnapshot snapshot) throws IOException {
         if(snapshot.getQuotation()!=null)snapshot.getQuotation().validate();
         snapshot.setAuthor(runtime.user());

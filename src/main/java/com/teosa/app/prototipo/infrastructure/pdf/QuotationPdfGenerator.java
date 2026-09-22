@@ -16,13 +16,15 @@ public final class QuotationPdfGenerator {
 
     public static void generate(Path target, Quotation quotation, TemplateDefinition template) throws Exception {
         try (OutputStream output = Files.newOutputStream(target)) {
-            Document document = new Document(PageSize.LETTER, 36, 36, 32, 36);
+            Document document = new Document(PageSize.LETTER, 36, 36, 32, 64);
             PdfWriter writer = PdfWriter.getInstance(document, output);
             writer.setPageEvent(new PdfPageEventHelper() {
                 @Override public void onEndPage(PdfWriter w, Document d) {
+                    footerLine(w,d,template.getQuotationFooterAddress(),42);
+                    footerLine(w,d,template.getQuotationFooterContact(),30);
                     ColumnText.showTextAligned(w.getDirectContent(), Element.ALIGN_RIGHT,
                             new Phrase("Cotización " + quotation.value("folio") + " · Página " + w.getPageNumber(),
-                                    new Font(Font.HELVETICA, 8)), d.right(), 20, 0);
+                                    new Font(Font.HELVETICA, 7)), d.right(), 14, 0);
                 }
             });
             document.open();
@@ -48,7 +50,7 @@ public final class QuotationPdfGenerator {
                     if(fields%4+span>4){while(fields%4!=0){metadata.addCell(cell("",body,Color.WHITE,false));fields++;}}
                     PdfPTable entry=new PdfPTable(1);
                     entry.addCell(cell(field.getLabel(),heading,color(field.getBackgroundColor()),false));
-                    entry.addCell(cell(quotation.value(field.getKey()),body,Color.WHITE,false));
+                    entry.addCell(cell(quotation.value(field.getKey()),field.getKey().equals("servicio")?heading:body,Color.WHITE,false));
                     PdfPCell entryCell=new PdfPCell(entry);entryCell.setPadding(0);entryCell.setColspan(span);
                     metadata.addCell(entryCell);fields+=span;
                 }
@@ -63,8 +65,8 @@ public final class QuotationPdfGenerator {
                 for (QuotationLine line : quotation.getLines()) {
                     boolean scopes=!line.getScopes().isEmpty();
                     int firstBorder=Rectangle.LEFT|Rectangle.RIGHT|Rectangle.TOP|(scopes?0:Rectangle.BOTTOM);
-                    items.addCell(itemCell(line.getCode(),body,false,firstBorder));
-                    items.addCell(itemCell(line.getDescription(),body,false,firstBorder));
+                    items.addCell(itemCell(line.getCode(),heading,false,firstBorder));
+                    items.addCell(itemCell(line.getDescription(),heading,false,firstBorder));
                     items.addCell(itemCell(line.getQuantity().stripTrailingZeros().toPlainString(),body,true,firstBorder));
                     items.addCell(itemCell(money(line.getUnitPrice()),body,true,firstBorder));
                     items.addCell(itemCell(money(line.amount()),body,true,firstBorder));
@@ -104,6 +106,15 @@ public final class QuotationPdfGenerator {
                 document.add(totals);
             } finally { document.close(); }
         }
+    }
+    private static void footerLine(PdfWriter writer,Document document,String value,float y){
+        String text=value.replace('\n',' ').replace('\r',' ');
+        Font font=new Font(Font.HELVETICA,8.5f);
+        float width=font.getCalculatedBaseFont(false).getWidthPoint(text,font.getSize());
+        float available=document.right()-document.left();
+        if(width>available)font.setSize(font.getSize()*available/width);
+        ColumnText.showTextAligned(writer.getDirectContent(),Element.ALIGN_CENTER,new Phrase(text,font),
+                (document.left()+document.right())/2,y,0);
     }
     private static PdfPCell itemCell(String value,Font font,boolean right,int border){
         PdfPCell result=cell(value,font,Color.WHITE,right);result.setBorder(border);return result;

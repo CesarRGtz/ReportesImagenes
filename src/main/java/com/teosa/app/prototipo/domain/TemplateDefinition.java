@@ -26,6 +26,12 @@ public class TemplateDefinition {
         t.section1Title="DESCRIPCIÓN DEL SERVICIO";t.section2Title="ALCANCES";t.section3Title="NOTAS";
         t.photoCommentStyle.setItalic(false);t.photoCommentStyle.setColor("#111111");return t;
     }
+    private String quotationFooterAddress;
+    private String quotationFooterContact;
+    public String getQuotationFooterAddress(){return quotationFooterAddress==null?"Jimenez S/N entre Sociedad Mutualista y Arnulfo R. Gómez, Col. Tierra Blanca, Navojoa, Sonora, CP. 85820":quotationFooterAddress;}
+    public void setQuotationFooterAddress(String value){quotationFooterAddress=value;}
+    public String getQuotationFooterContact(){return quotationFooterContact==null?"R.F.C. TEO-010430-4K9  Tel: (642)422-3240   Correo: teosa1@hotmail.com":quotationFooterContact;}
+    public void setQuotationFooterContact(String value){quotationFooterContact=value;}
     private String name = "Formato predeterminado";
     private long lastUsedAt;
     private Map<String, FieldDefinition> fields = new LinkedHashMap<>();

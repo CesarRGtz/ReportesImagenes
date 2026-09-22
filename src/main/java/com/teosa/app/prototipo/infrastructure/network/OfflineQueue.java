@@ -24,6 +24,19 @@ import java.util.Map;
 import java.util.UUID;
 
 public class OfflineQueue implements LocalDocuments {
+    private static final class FolioNotices {Map<String,QuotationFolioChange> changes=new LinkedHashMap<>();}
+    private Path folioNoticesPath(){return AppDirectories.base().resolve("cambios-folios.json");}
+    private FolioNotices readFolioNotices()throws IOException{return Files.exists(folioNoticesPath())?JsonSupport.read(folioNoticesPath(),FolioNotices.class):new FolioNotices();}
+    public synchronized List<QuotationFolioChange> folioChanges()throws IOException{return List.copyOf(readFolioNotices().changes.values());}
+    public synchronized void acknowledgeFolioChange(String reportId,String current)throws IOException{
+        FolioNotices notices=readFolioNotices();QuotationFolioChange change=notices.changes.get(reportId);
+        if(change!=null&&change.current().equals(current)){notices.changes.remove(reportId);JsonSupport.write(folioNoticesPath(),notices);}
+    }
+    private void recordFolioChange(String id,String previous,String current)throws IOException{
+        if(previous.equals(current))return;
+        FolioNotices notices=readFolioNotices();QuotationFolioChange old=notices.changes.get(id);
+        notices.changes.put(id,new QuotationFolioChange(id,old==null?previous:old.previous(),current));JsonSupport.write(folioNoticesPath(),notices);
+    }
     private static final String PENDING_PREFIX = "pending:";
     private static final String LOCAL_PREFIX = "local:";
 
@@ -175,6 +188,10 @@ public class OfflineQueue implements LocalDocuments {
     private void archiveSynced(ReportTransfer transfer, SaveResponse response) throws IOException {
         ReportSnapshot snapshot = transfer.getSnapshot();
         snapshot.setReportId(response.getReportId());
+        if(snapshot.getQuotation()!=null&&response.getQuotationFolio()!=null){
+            recordFolioChange(snapshot.getReportId(),snapshot.getQuotation().value("folio"),response.getQuotationFolio());
+            snapshot.getQuotation().setValue("folio",response.getQuotationFolio());snapshot.getQuotation().setFolioAssigned(true);
+        }
         snapshot.setVersion(response.getVersion());
         snapshot.setSavedAt(System.currentTimeMillis());
         JsonSupport.write(syncedPath(snapshot.getReportId(), snapshot.getVersion()), transfer);

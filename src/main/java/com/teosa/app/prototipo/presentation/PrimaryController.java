@@ -1214,17 +1214,19 @@ public class PrimaryController {
         double encabezadoPendiente = categorias.isEmpty()
                 ? ReportLayout.estimatePhotoSectionHeight(activeTemplate.getSection3Title()) : 0;
         if ((!categorias.isEmpty() && categorias.get(categorias.size() - 1).isSaltoPaginaDespues())
-                || ultima.espacioDisponible < CuadroFirmas.alto(firmas) + CuadroFirmas.ESPACIO + encabezadoPendiente
+                || ultima.espacioDisponible < CuadroFirmas.alto(firmas) + CuadroFirmas.MARGEN + encabezadoPendiente
                 || (categorias.isEmpty() && activeTemplate.isStartPhotosOnNewPage())) {
             ultima = crearPaginaFotos(false);
         }
         configurarBordeFotosPreview(ultima.tabla);
         if (categorias.isEmpty()) ultima.tabla.getChildren().add(barraSeccionPreview(activeTemplate.getSection3Title()));
-        ultima.tabla.setMaxHeight(Double.MAX_VALUE);
-        VBox.setVgrow(ultima.tabla, Priority.ALWAYS);
         Region espacioFirmas = new Region();
-        espacioFirmas.setMinHeight(CuadroFirmas.MARGEN);
-        VBox.setVgrow(espacioFirmas, Priority.ALWAYS);
+        double margenSuperior = CuadroFirmas.margenSuperior(ultima.espacioDisponible - encabezadoPendiente, firmas);
+        espacioFirmas.setMinHeight(margenSuperior);
+        espacioFirmas.setPrefHeight(margenSuperior);
+        espacioFirmas.setMaxHeight(margenSuperior);
+        VBox.setVgrow(espacioFirmas, Priority.NEVER);
+        ultima.tabla.setAlignment(Pos.TOP_LEFT);
         VBox.setMargin(cuadro, new Insets(0, CuadroFirmas.MARGEN, CuadroFirmas.MARGEN, CuadroFirmas.MARGEN));
         ultima.tabla.getChildren().addAll(espacioFirmas, cuadro);
         position.restore();
@@ -1370,8 +1372,15 @@ public class PrimaryController {
 
                 VBox controlesFoto = new VBox(5, etiquetaAncho, filaAncho, accionesFoto, detalle);
                 controlesFoto.getStyleClass().add("photo-editor-row");
+                String nombreArchivo = new File(foto.getRuta()).getName();
+                String nombreCorto = nombreArchivo.length() > 28
+                        ? nombreArchivo.substring(0, 18) + "…" + nombreArchivo.substring(nombreArchivo.length() - 9)
+                        : nombreArchivo;
                 TitledPane fotoPane = desplegableFoto(foto,
-                        "Imagen " + (fotoIndex + 1) + " · " + new File(foto.getRuta()).getName(), controlesFoto);
+                        "Imagen " + (fotoIndex + 1) + " · " + nombreCorto, controlesFoto);
+                fotoPane.getStyleClass().add("photo-file-pane");
+                fotoPane.setMinWidth(0);
+                fotoPane.setTooltip(new Tooltip(nombreArchivo));
                 tarjetaCategoria.getChildren().add(fotoPane);
             }
 
@@ -1480,8 +1489,7 @@ public class PrimaryController {
                 if (altoMinimoFila > estado.espacioDisponible) {
                     estado = crearPaginaFotos(false);
                 }
-                double altoMaximoFila = Math.max(1,
-                        estado.espacioDisponible - ReportLayout.PHOTO_SPACING);
+                double altoMaximoFila = ReportLayout.MAX_PHOTO_ROW_HEIGHT;
                 List<PhotoPreviewData> datosFila = new ArrayList<>();
 
                 for (int fotoIndex = inicioFila; fotoIndex < finFila; fotoIndex++) {
@@ -1507,7 +1515,7 @@ public class PrimaryController {
                 }
 
                 estado.tabla.getChildren().add(fila);
-                estado.espacioDisponible -= altoFilaReal + ReportLayout.PHOTO_SPACING;
+                estado.espacioDisponible -= altoFilaReal;
                 inicioFila = finFila;
             }
         }
@@ -1559,17 +1567,22 @@ public class PrimaryController {
                     activeTemplate.getPhotoCommentStyle().getFontSize());
             alto = Math.max(alto, altoDescripcion
                     + (ReportLayout.PHOTO_CELL_PADDING * 2)
-                    + ReportLayout.MIN_PHOTO_RENDER_HEIGHT);
+                    + tamanoFoto(categoria.getFotografias().get(indice))[1]);
         }
-        return alto + ReportLayout.PHOTO_SPACING;
+        return alto;
+    }
+
+    private double[] tamanoFoto(FotoEvidencia foto) {
+        Image image = new Image(new File(foto.getRuta()).toURI().toString());
+        if (image.isError()) throw new IllegalArgumentException("No se pudo cargar la imagen");
+        return ReportLayout.pagePhotoSize(image.getWidth(), image.getHeight(), foto.getAncho());
     }
 
     private int calcularFinFila(CategoriaFotografica categoria, int inicio) {
         double anchoUsado = 0;
         int fin = inicio;
         while (fin < categoria.getFotografias().size()) {
-            double ancho = ReportLayout.photoCellWidth(
-                    categoria.getFotografias().get(fin).getAncho());
+            double ancho = tamanoFoto(categoria.getFotografias().get(fin))[0];
             double separacion = fin > inicio ? ReportLayout.PHOTO_GAP : 0;
             if (fin > inicio && anchoUsado + separacion + ancho > ReportLayout.MAX_PHOTO_WIDTH) {
                 break;
@@ -1584,8 +1597,7 @@ public class PrimaryController {
             CategoriaFotografica categoria, int inicio, int fin) {
         double[] anchos = new double[fin - inicio];
         for (int indice = inicio; indice < fin; indice++) {
-            anchos[indice - inicio] = ReportLayout.photoCellWidth(
-                    categoria.getFotografias().get(indice).getAncho());
+            anchos[indice - inicio] = tamanoFoto(categoria.getFotografias().get(indice))[0];
         }
         return anchos;
     }
@@ -1627,12 +1639,8 @@ public class PrimaryController {
     private VBox crearCeldaFotoPreview(PhotoPreviewData datos, int categoriaIndex,
                                        int fotoIndex, double altoMaximoFila,
                                        double anchoCelda) {
-        double altoMaximoImagen = Math.max(1,
-                altoMaximoFila - datos.altoDescripcion - (ReportLayout.PHOTO_CELL_PADDING * 2));
-        double[] tamano = ReportLayout.scaleImage(
-                datos.imagen.getWidth(), datos.imagen.getHeight(),
-                datos.foto.getAncho(),
-                anchoCelda, altoMaximoImagen);
+        double[] tamano = ReportLayout.pagePhotoSize(
+                datos.imagen.getWidth(), datos.imagen.getHeight(), datos.foto.getAncho());
 
         VBox celda = new VBox(6);
         celda.setAlignment(Pos.TOP_LEFT);

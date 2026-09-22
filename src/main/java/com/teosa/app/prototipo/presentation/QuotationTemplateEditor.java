@@ -14,15 +14,19 @@ import java.util.function.Consumer;
 public final class QuotationTemplateEditor {
     private QuotationTemplateEditor(){}
     public static VBox content(TemplateDefinition source,Quotation document,DocumentCodec codec,AppServices services,Consumer<TemplateDefinition> onApply,Runnable onCancel){
-        return content(source,document,codec,services,onApply,onCancel,false);
+        return content(source,document,codec,services,onApply,onCancel,false,t->{},()->{},source.getName());
     }
     public static VBox managementContent(TemplateDefinition source,DocumentCodec codec,Consumer<TemplateDefinition> onSave,Runnable onCancel){
-        return content(source,new Quotation(),codec,null,onSave,onCancel,true);
+        return content(source,new Quotation(),codec,null,onSave,onCancel,true,t->{},()->{},source.getName());
     }
-    private static VBox content(TemplateDefinition source,Quotation document,DocumentCodec codec,AppServices services,Consumer<TemplateDefinition> onApply,Runnable onCancel,boolean management){
+    public static VBox content(TemplateDefinition source,Quotation document,DocumentCodec codec,AppServices services,Consumer<TemplateDefinition> onApply,Runnable onCancel,Consumer<TemplateDefinition> onSaved,Runnable onDeleted,String storedName){
+        return content(source,document,codec,services,onApply,onCancel,false,onSaved,onDeleted,storedName);
+    }
+    private static VBox content(TemplateDefinition source,Quotation document,DocumentCodec codec,AppServices services,Consumer<TemplateDefinition> onApply,Runnable onCancel,boolean management,Consumer<TemplateDefinition> onSaved,Runnable onDeleted,String storedName){
         TemplateDefinition template=codec.copy(source,TemplateDefinition.class);
         // Preserve older templates' total color before making table colors independent.
         if(template.getKind()==DocumentKind.QUOTATION)template.setTotalBackgroundColor(template.getTotalBackgroundColor());
+        String[] persistedName={storedName};
         VBox body=new VBox(10);body.setPadding(new Insets(12));
         Runnable publish=()->{if(!management){ViewportPosition position=ViewportPosition.captureAncestor(body);onApply.accept(template);position.restore();}};
         Controls ui=new Controls(publish);
@@ -31,20 +35,20 @@ public final class QuotationTemplateEditor {
         Button save=AppIcons.button("Guardar plantilla"),delete=AppIcons.button("Eliminar plantilla guardada");
         save.setOnAction(e->{
             if(name.getText().isBlank()){result.setText("Escribe el nombre de la plantilla.");return;}
-            if(presets.isSelected()){template.getPresetValues().clear();template.getPresetValues().putAll(document.getValues());}
-            template.setLastUsedAt(System.currentTimeMillis());TemplateDefinition snapshot=codec.copy(template,TemplateDefinition.class);
+            if(presets.isSelected()){template.getPresetValues().clear();template.getPresetValues().putAll(document.getValues());template.getPresetValues().remove("folio");}
+            template.setName(name.getText().trim());template.setLastUsedAt(System.currentTimeMillis());TemplateDefinition snapshot=codec.copy(template,TemplateDefinition.class);
             save.setDisable(true);delete.setDisable(true);
             Task<Void> task=new Task<>(){protected Void call()throws Exception{services.saveTemplate(snapshot);return null;}};
-            task.setOnSucceeded(ev->{save.setDisable(false);delete.setDisable(false);result.setText("Plantilla guardada. Los cambios ya se muestran en esta cotización.");});
+            task.setOnSucceeded(ev->{save.setDisable(false);delete.setDisable(false);persistedName[0]=snapshot.getName();onSaved.accept(snapshot);result.setText("Plantilla guardada. Los cambios ya se muestran en esta cotización.");});
             task.setOnFailed(ev->{save.setDisable(false);delete.setDisable(false);result.setText(task.getException().getMessage());});Thread.ofVirtual().start(task);
         });
         delete.setOnAction(e->{
-            if(template.getName().equals("Cotización predeterminada")){result.setText("La plantilla predeterminada se conserva.");return;}
-            Alert confirm=new Alert(Alert.AlertType.CONFIRMATION,"¿Eliminar la plantilla guardada «"+template.getName()+"»?",ButtonType.YES,ButtonType.NO);
+            if(persistedName[0].equals("Cotización predeterminada")){result.setText("La plantilla predeterminada se conserva.");return;}
+            Alert confirm=new Alert(Alert.AlertType.CONFIRMATION,"¿Eliminar la plantilla guardada «"+persistedName[0]+"»?",ButtonType.YES,ButtonType.NO);
             if(confirm.showAndWait().orElse(ButtonType.NO)!=ButtonType.YES)return;
-            save.setDisable(true);delete.setDisable(true);String key=template.storageName();
+            save.setDisable(true);delete.setDisable(true);String key="quotation:"+persistedName[0];
             Task<Void> task=new Task<>(){protected Void call()throws Exception{services.deleteTemplate(key);return null;}};
-            task.setOnSucceeded(ev->{save.setDisable(false);delete.setDisable(false);result.setText("Plantilla eliminada.");});
+            task.setOnSucceeded(ev->{save.setDisable(false);delete.setDisable(false);result.setText("Plantilla eliminada.");onDeleted.run();});
             task.setOnFailed(ev->{save.setDisable(false);delete.setDisable(false);result.setText(task.getException().getMessage());});Thread.ofVirtual().start(task);
         });
         body.getChildren().addAll(new Label("Nombre de la plantilla"),name);
@@ -94,6 +98,10 @@ public final class QuotationTemplateEditor {
             VBox total=subsection("Total","content-total",new Label("Color de fondo de la fila TOTAL"),totalColor);
             VBox text=subsection("Texto del documento","content-text",ui.styleEditor(template.getPhotoCommentStyle()));
             body.getChildren().add(section("Contenido",new VBox(14,table,new Separator(),notes,new Separator(),total,new Separator(),text)));
+            TextField address=ui.text(template.getQuotationFooterAddress(),template::setQuotationFooterAddress);address.setId("format-footer-address");
+            TextField contact=ui.text(template.getQuotationFooterContact(),template::setQuotationFooterContact);contact.setId("format-footer-contact");
+            Label footerHelp=new Label("Dos renglones centrados al pie de cada página.");footerHelp.setWrapText(true);
+            body.getChildren().add(section("Pie de página",new VBox(8,footerHelp,new Label("Dirección"),address,new Label("RFC, teléfono y correo"),contact)));
         }else{
             body.getChildren().add(section("Títulos y color de secciones",new VBox(8,ui.text(template.getSection1Title(),template::setSection1Title),ui.text(template.getSection2Title(),template::setSection2Title),ui.text(template.getSection3Title(),template::setSection3Title),ui.color(template.getSectionBackgroundColor(),template::setSectionBackgroundColor))));
             body.getChildren().add(section("Texto del documento",ui.styleEditor(template.getPhotoCommentStyle())));

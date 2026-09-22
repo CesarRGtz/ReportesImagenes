@@ -407,3 +407,6 @@
 .text-area.new-scope-input { -fx-border-color: #a5b4d8; }
 .text-area.new-scope-input .content { -fx-background-color: #f3f6fc; }
 .text-area.new-scope-input:focused { -fx-border-color: #818cf8; }
+
+/* Compact file titles without reducing the photo editing controls. */
+.photo-file-pane > .title { -fx-font-size: 11px; }

@@ -41,6 +41,8 @@ public class LocalReportServer implements AutoCloseable {
                 health.addProperty("ok", true);
                 health.addProperty("computer", UserIdentity.computer());
                 send(exchange, 200, health);
+            } else if(parts.length==3&&parts[1].equals("quotation-folios")&&(method.equals("GET")||method.equals("POST"))){
+                send(exchange,200,storage.quotationFolio(decode(parts[2]),method.equals("POST")));
             } else if (path.equals("/catalog") && method.equals("GET")) {
                 send(exchange,200,storage.listCatalog());
             } else if (path.equals("/catalog") && method.equals("POST")) {

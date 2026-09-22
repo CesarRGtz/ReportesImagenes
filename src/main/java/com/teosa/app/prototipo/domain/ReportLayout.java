@@ -69,6 +69,12 @@ public final class ReportLayout {
         };
     }
 
+    /** Stable page-based dimensions, independent of preceding text and captions. */
+    public static double[] pagePhotoSize(double width, double height, double requestedWidth) {
+        return scaleImage(width, height, requestedWidth, photoCellWidth(requestedWidth),
+                MAX_PHOTO_ROW_HEIGHT - PHOTO_CELL_PADDING * 2 - PHOTO_SPACING);
+    }
+
     private static double clamp(double value, double minimum, double maximum) {
         return Math.max(minimum, Math.min(maximum, value));
     }

@@ -70,14 +70,20 @@ public final class QuotationSmokeTest {
             String text=new PDFTextStripper().getText(doc);
             check(text.contains("CDM-954")&&text.contains("5,498.40")&&text.contains("A CREDITO"),"Contenido PDF del Excel");
             check(doc.getNumberOfPages()==1,"El ejemplo cabe en una página");
+            check(text.contains("Jimenez S/N entre Sociedad Mutualista")&&text.contains("teosa1@hotmail.com"),"Default footer missing");
             ImageIO.write(new PDFRenderer(doc).renderImageWithDPI(0,110),"png",outputs.resolve("cotizacion-ejemplo.png").toFile());
         }
         template.getFields().get("contacto").setVisible(false);template.getFields().put("custom",new FieldDefinition("custom","REFERENCIA ESPECIAL",8,true));q.setValue("custom","Dato personalizado");
+        template.setQuotationFooterAddress("DIRECCIÓN PERSONALIZADA");template.setQuotationFooterContact("CONTACTO PERSONALIZADO");
         q.getLines().getFirst().setScope("Alcance extenso de prueba.\n".repeat(130));Path longPdf=outputs.resolve("cotizacion-multipagina.pdf");QuotationPdfGenerator.generate(longPdf,q,template);
         try(var doc=Loader.loadPDF(longPdf.toFile())){
             String text=new PDFTextStripper().getText(doc);check(doc.getNumberOfPages()>1,"Paginación de alcance largo");
             check(!text.contains("ING. ERNESTO")&&text.replaceAll("\\s+"," ").contains("REFERENCIA ESPECIAL")&&text.contains("Dato personalizado"),"Personalización aplicada al PDF");
             check(text.contains("5,498.40"),"Total presente tras paginar");
+            for(int page=1;page<=doc.getNumberOfPages();page++){
+                PDFTextStripper footer=new PDFTextStripper();footer.setStartPage(page);footer.setEndPage(page);String pageText=footer.getText(doc);
+                check(pageText.contains("DIRECCIÓN PERSONALIZADA")&&pageText.contains("CONTACTO PERSONALIZADO"),"Edited footer missing on page "+page);
+            }
         }
         System.out.println("QUOTATION_OFFLINE_SYNC_PDF_OK");
     }

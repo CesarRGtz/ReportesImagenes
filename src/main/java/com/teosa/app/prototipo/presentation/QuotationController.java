@@ -43,30 +43,40 @@ public final class QuotationController {
     private final Set<String> invalid=new HashSet<>();
     private Quotation quotation=new Quotation();
     private TemplateDefinition template=TemplateDefinition.quotationDefaults();
+    private static final String DEFAULT_TEMPLATE="Cotización predeterminada";
+    private String selectedTemplateName=DEFAULT_TEMPLATE,templateBaseline;
+    private boolean fetchingTemplates,templatesAgain;
+    private int templateGeneration;
     private String id=UUID.randomUUID().toString(), savedFingerprint;
     private int version, previewRevision;
     private List<CatalogEntry> catalog=List.of();
-    private boolean loadingCatalog;
+    private boolean loadingCatalog,fetchingFolio,fetchingFolioChanges;
+    private final Set<String> notifiedFolios=new HashSet<>();
+    private final Label folioHelp=new Label();
     private final javafx.animation.Timeline catalogRefresh=new javafx.animation.Timeline();
     private boolean saving, rendering, previewAgain, loadingTemplates, disposed;
     private final Consumer<String> statusListener=s->Platform.runLater(()->status.setText(s));
 
     public QuotationController(AppServices services,DocumentCodec codec,DocumentOutput output) {
         this.services=services;this.codec=codec;this.output=output;
+        quotation.setAutomaticFolio(true);
+        quotation.setValue("folio",provisionalFolio());
+        templateBaseline=templateSignature(template);
         root.getStyleClass().add("app-shell");
         root.setTop(DesktopChrome.header("Cotizaciones TEOSA","Gestión de servicios y cotizaciones"));
         templates.setConverter(new StringConverter<>() {
             public String toString(TemplateDefinition t){return t==null?"":t.getName();}
             public TemplateDefinition fromString(String s){return null;}
         });
-        templates.setMaxWidth(Double.MAX_VALUE);
+        templates.setMaxWidth(Double.MAX_VALUE);templates.setId("quotation-templates");
         templates.setOnShowing(e->loadTemplates());
         templates.setOnAction(e->{
             TemplateDefinition selected=templates.getValue();
             if(selected==null || loadingTemplates || !numbersValid())return;
             root.setRight(null);
             template=codec.copy(selected,TemplateDefinition.class);
-            template.getPresetValues().forEach(quotation::setValue);
+            selectedTemplateName=selected.getName();templateBaseline=templateSignature(template);
+            applyPresets();
             rebuildForm();changed();
         });
         form.getStyleClass().add("sidebar-content");
@@ -92,8 +102,8 @@ public final class QuotationController {
         HBox workspace=new HBox(formScroll,previewPanel);workspace.getStyleClass().add("workspace");root.setCenter(workspace);
         debounce.setOnFinished(e->refreshPreview());
         services.addStatusListener(statusListener);
-        rebuildForm();savedFingerprint=fingerprint();loadTemplates();loadCatalog();changed();
-        catalogRefresh.getKeyFrames().add(new javafx.animation.KeyFrame(Duration.seconds(5),e->loadCatalog()));
+        rebuildForm();savedFingerprint=fingerprint();loadTemplates();loadCatalog();refreshFolio();changed();
+        catalogRefresh.getKeyFrames().add(new javafx.animation.KeyFrame(Duration.seconds(5),e->{loadCatalog();loadTemplates();refreshFolio();refreshFolioChanges();}));
         catalogRefresh.setCycleCount(javafx.animation.Animation.INDEFINITE);catalogRefresh.play();
     }
     private void loadCatalog(){
@@ -147,7 +157,7 @@ public final class QuotationController {
         template.orderedFields().forEach(this::addDetailField);
         TextArea introduction=area(quotation.getIntroduction(),quotation::setIntroduction);introduction.setId("quotation-introduction");
         int introductionIndex=fieldInputs.containsKey("folio")?details.getChildren().indexOf(fieldInputs.get("folio"))+1:2;
-        details.getChildren().addAll(introductionIndex,List.of(label("Texto de presentación","field-label"),introduction));
+        details.getChildren().addAll(introductionIndex,List.of(folioHelp,label("Texto de presentación","field-label"),introduction));
         VBox items=card("Partidas y alcances","Agrega los servicios, cantidades y costos que vas a cotizar.");
         Button add=styledButton("Agregar partida","button-primary",()->{
             if(!numbersValid())return;
@@ -181,6 +191,7 @@ public final class QuotationController {
                 details.getChildren().add(date);
             }else {
                 TextField input=field(quotation.value(key),v->quotation.setValue(key,v));input.setId("quotation-"+key);details.getChildren().add(input);
+                if(key.equals("folio")){input.setEditable(!quotation.isAutomaticFolio());updateFolioHelp();}
                 if(key.equals("cliente")){
                     CatalogAutocomplete.attach(input,CatalogEntry.Kind.CLIENT,()->catalog);
 
@@ -195,7 +206,7 @@ public final class QuotationController {
         }
         for(FieldDefinition def:template.orderedFields()){
             if(!fieldLabels.containsKey(def.getKey())){
-                int index=4+fieldLabels.size()*2;
+                int index=5+fieldLabels.size()*2;
                 addDetailField(def);
                 Label label=fieldLabels.get(def.getKey());javafx.scene.Node input=fieldInputs.get(def.getKey());
                 details.getChildren().removeAll(label,input);details.getChildren().addAll(index,List.of(label,input));
@@ -308,11 +319,70 @@ public final class QuotationController {
         try{if(!invalid.isEmpty())throw new IllegalArgumentException("Revisa los números marcados en rojo.");quotation.validate();AmountInWords.pesos(quotation.total());return true;}
         catch(Exception ex){message("Revisa la cotización",ex.getMessage());return false;}
     }
-    private void save(){
+    private String provisionalFolio(){return String.format(Locale.ROOT,"TEO%02d-PEND-%s",LocalDate.now().getYear()%100,id.substring(0,8).toUpperCase(Locale.ROOT));}
+    private void updateFolioHelp(){
+        folioHelp.setWrapText(true);folioHelp.getStyleClass().setAll("section-help");
+        folioHelp.setText(!quotation.isAutomaticFolio()||quotation.isFolioAssigned()?"":quotation.value("folio").contains("-PEND-")?"Folio provisional: se confirmará al conectar con el servidor.":"El número se confirma al guardar, generar PDF o imprimir.");
+        folioHelp.setManaged(!folioHelp.getText().isEmpty());folioHelp.setVisible(folioHelp.isManaged());
+    }
+    private void applyFolio(QuotationFolio folio){
+        if(quotation.value("folio").equals(folio.value())&&quotation.isFolioAssigned()==folio.assigned())return;
+        quotation.setValue("folio",folio.value());quotation.setFolioAssigned(folio.assigned());
+        if(fieldInputs.get("folio") instanceof TextField field)field.setText(folio.value());updateFolioHelp();changed();
+    }
+    private void notifyFolioChange(QuotationFolioChange change){
+        if(!notifiedFolios.add(change.reportId()+"/"+change.current())||disposed)return;
+        if(root.getScene()==null||!root.getScene().getWindow().isShowing()){notifiedFolios.remove(change.reportId()+"/"+change.current());return;}
+        Alert notice=new Alert(Alert.AlertType.INFORMATION,"El servidor verificó la cotización y actualizó su folio.\n\nAnterior: "+change.previous()+"\nConfirmado: "+change.current(),ButtonType.OK);
+        notice.setTitle("Folio confirmado por el servidor");notice.setHeaderText("La cotización ahora usa "+change.current());
+        notice.initOwner(root.getScene().getWindow());notice.initModality(javafx.stage.Modality.NONE);App.applyTheme(notice.getDialogPane());notice.show();
+    }
+    private void refreshFolioChanges(){
+        if(disposed||fetchingFolioChanges)return;fetchingFolioChanges=true;
+        background(services::folioChanges,changes->{
+            fetchingFolioChanges=false;
+            if(root.getScene()==null||!root.getScene().getWindow().isShowing())return;
+            for(QuotationFolioChange change:changes){
+                if(id.equals(change.reportId())){
+                    boolean clean=Objects.equals(savedFingerprint,fingerprint());applyFolio(new QuotationFolio(change.current(),true));if(clean)savedFingerprint=fingerprint();
+                }
+                notifyFolioChange(change);
+                background(()->{services.acknowledgeFolioChange(change);return true;},ok->{},ex->{});
+            }
+        },ex->fetchingFolioChanges=false);
+    }
+    private void refreshFolio(){
+        if(disposed||saving||fetchingFolio||!quotation.isAutomaticFolio()||quotation.isFolioAssigned())return;
+        String documentId=id;fetchingFolio=true;
+        background(()->services.quotationFolio(documentId,false),folio->{
+            fetchingFolio=false;if(!id.equals(documentId)||saving||quotation.isFolioAssigned())return;
+            boolean clean=Objects.equals(savedFingerprint,fingerprint());String previous=quotation.value("folio");
+            applyFolio(folio);if(clean)savedFingerprint=fingerprint();
+            if(folio.assigned()&&!previous.equals(folio.value()))notifyFolioChange(new QuotationFolioChange(id,previous,folio.value()));
+        },ex->fetchingFolio=false);
+    }
+    private void withConfirmedFolio(Runnable action){
+        if(saving)return;
+        if(!quotation.isAutomaticFolio()||quotation.isFolioAssigned()){action.run();return;}
+        saving=true;root.getCenter().setDisable(true);String documentId=id;
+        background(()->services.quotationFolio(documentId,true),folio->{
+            saving=false;root.getCenter().setDisable(false);if(!id.equals(documentId))return;
+            String previous=quotation.value("folio");applyFolio(folio);
+            if(folio.assigned()&&previous.contains("-PEND-")&&!previous.equals(folio.value()))notifyFolioChange(new QuotationFolioChange(id,previous,folio.value()));
+            action.run();
+        },ex->{saving=false;root.getCenter().setDisable(false);message("No se pudo confirmar el folio",ex.getMessage());});
+    }
+    private void save(){if(saving||!valid())return;withConfirmedFolio(this::saveNumbered);}
+    private void saveNumbered(){
         if(saving || !valid())return;
-        saving=true;ReportSnapshot snapshot=snapshot();String fingerprint=fingerprint();status.setText("Guardando...");
+        saving=true;ReportSnapshot snapshot=snapshot();status.setText("Guardando...");
         background(()->services.saveReport(snapshot),response->{
-            saving=false;id=response.getReportId();if(response.getVersion()>0)version=response.getVersion();savedFingerprint=fingerprint;
+            saving=false;id=response.getReportId();if(response.getVersion()>0)version=response.getVersion();
+            if(response.getQuotationFolio()!=null){
+                applyFolio(new QuotationFolio(response.getQuotationFolio(),true));
+                snapshot.getQuotation().setValue("folio",response.getQuotationFolio());snapshot.getQuotation().setFolioAssigned(true);
+            }
+            savedFingerprint=codec.toJson(snapshot.getQuotation())+codec.toJson(snapshot.getTemplate());
             message(response.isQueued()?"Guardada en este equipo":"Cotización guardada",response.getMessage());
         },ex->{saving=false;message("No se pudo guardar",ex.getMessage());});
     }
@@ -325,18 +395,45 @@ public final class QuotationController {
     private void newDocument(){
         if(!confirmClose())return;
         root.setRight(null);
-        quotation=new Quotation();template.getPresetValues().forEach(quotation::setValue);id=UUID.randomUUID().toString();version=0;
-        rebuildForm();savedFingerprint=fingerprint();changed();
+        quotation=new Quotation();quotation.setAutomaticFolio(true);applyPresets();id=UUID.randomUUID().toString();quotation.setValue("folio",provisionalFolio());version=0;
+        rebuildForm();savedFingerprint=fingerprint();refreshFolio();changed();
+    }
+    private void applyPresets(){template.getPresetValues().forEach((key,value)->{if(!key.equals("folio"))quotation.setValue(key,value);});}
+    private String templateSignature(TemplateDefinition value){
+        TemplateDefinition copy=codec.copy(value,TemplateDefinition.class);copy.setLastUsedAt(0);
+        copy.setTotalBackgroundColor(copy.getTotalBackgroundColor());return codec.toJson(copy);
+    }
+    private void selectDefaultTemplate(){
+        root.setRight(null);selectedTemplateName=DEFAULT_TEMPLATE;
+        template=codec.copy(templates.getItems().stream().filter(t->DEFAULT_TEMPLATE.equals(t.getName())).findFirst().orElseGet(TemplateDefinition::quotationDefaults),TemplateDefinition.class);
+        templateBaseline=templateSignature(template);updateDetailFields();changed();templateGeneration++;loadTemplates();
     }
     private void loadTemplates(){
+        if(disposed)return;
+        if(fetchingTemplates){templatesAgain=true;return;}
+        fetchingTemplates=true;int generation=templateGeneration;
         background(()->services.listTemplates(DocumentKind.QUOTATION),list->{
+            fetchingTemplates=false;
+            if(generation!=templateGeneration){templatesAgain=false;loadTemplates();return;}
+            boolean clean=Objects.equals(savedFingerprint,fingerprint());
+            List<TemplateDefinition> choices=new ArrayList<>();
+            choices.add(codec.copy(list.stream().filter(t->DEFAULT_TEMPLATE.equals(t.getName())).findFirst().orElseGet(TemplateDefinition::quotationDefaults),TemplateDefinition.class));
+            list.stream().filter(t->!DEFAULT_TEMPLATE.equals(t.getName())).forEach(t->choices.add(codec.copy(t,TemplateDefinition.class)));
+            TemplateDefinition selected=choices.stream().filter(t->selectedTemplateName.equals(t.getName())).findFirst().orElse(choices.getFirst());
+            if(root.getRight()==null && Objects.equals(templateBaseline,templateSignature(template))){
+                if(!Objects.equals(templateSignature(template),templateSignature(selected))){
+                    template=codec.copy(selected,TemplateDefinition.class);selectedTemplateName=selected.getName();
+                    templateBaseline=templateSignature(template);
+                    if(clean&&version==0)applyPresets();
+                    ViewportPosition position=ViewportPosition.capture(formScroll);
+                    if(clean&&version==0)rebuildForm();else updateDetailFields();position.restore();changed();
+                    if(clean)savedFingerprint=fingerprint();
+                }
+            }
             loadingTemplates=true;
-            templates.getItems().setAll(list);
-            if(list.stream().noneMatch(t->t.getName().equals("Cotización predeterminada")))templates.getItems().addFirst(TemplateDefinition.quotationDefaults());
-            TemplateDefinition selected=templates.getItems().stream().filter(t->t.getName().equals(template.getName())).findFirst().orElse(template);
-            if(!templates.getItems().contains(selected))templates.getItems().add(selected);
-            templates.setValue(selected);loadingTemplates=false;
-        },ex->{loadingTemplates=true;templates.getItems().setAll(template);templates.setValue(template);loadingTemplates=false;});
+            try{templates.getItems().setAll(choices);templates.setValue(selected);}finally{loadingTemplates=false;}
+            if(templatesAgain){templatesAgain=false;loadTemplates();}
+        },ex->{fetchingTemplates=false;templatesAgain=false;});
     }
     private void customize(){
         if(root.getRight()!=null){root.setRight(null);return;}
@@ -348,7 +445,9 @@ public final class QuotationController {
         VBox content=QuotationTemplateEditor.content(template,quotation,codec,services,edited->{
             template=edited;updateDetailFields();
             changed();
-        },()->root.setRight(null));
+        },()->{root.setRight(null);loadTemplates();},saved->{
+            selectedTemplateName=saved.getName();templateBaseline=templateSignature(saved);templateGeneration++;loadTemplates();
+        },this::selectDefaultTemplate,selectedTemplateName);
         content.getStyleClass().add("drawer-content");
         ScrollPane scroll=new ScrollPane(content);scroll.setFitToWidth(true);scroll.getStyleClass().add("drawer-scroll");
         VBox.setVgrow(scroll,Priority.ALWAYS);
@@ -377,7 +476,7 @@ public final class QuotationController {
                 if(!confirmClose())return;
                 root.setRight(null);
                 quotation=loaded.getQuotation();template=loaded.getTemplate()==null?TemplateDefinition.quotationDefaults():loaded.getTemplate();
-                id=loaded.getReportId();version=loaded.getVersion();rebuildForm();savedFingerprint=fingerprint();changed();dialog.close();
+                id=loaded.getReportId();version=loaded.getVersion();selectedTemplateName=template.getName();templateBaseline=null;rebuildForm();savedFingerprint=fingerprint();changed();dialog.close();
             },ex->info.setText(ex.getMessage()));
         });
         Button deleteVersion=button("Eliminar versión",()->{
@@ -398,11 +497,14 @@ public final class QuotationController {
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF","*.pdf"));return chooser.showSaveDialog(root.getScene().getWindow());
     }
     private void exportPdf(){
-        if(!valid())return;File target=choosePdf();if(target==null)return;ReportSnapshot s=snapshot();
+        if(!valid())return;File target=choosePdf();if(target==null)return;
+        withConfirmedFolio(()->exportNumberedPdf(target));
+    }
+    private void exportNumberedPdf(File target){ReportSnapshot s=snapshot();
         background(()->{output.quotation(target,s.getQuotation(),s.getTemplate());return target;},f->message("PDF generado",f.getAbsolutePath()),ex->message("No se pudo generar el PDF",ex.getMessage()));
     }
-    private void print(){
-        if(!valid())return;ReportSnapshot s=snapshot();
+    private void print(){if(!valid())return;withConfirmedFolio(this::printNumbered);}
+    private void printNumbered(){ReportSnapshot s=snapshot();
         background(()->{Path pdf=Files.createTempFile("teosa-cotizacion-print-",".pdf");try{output.quotation(pdf.toFile(),s.getQuotation(),s.getTemplate());return pdf;}catch(Exception ex){Files.deleteIfExists(pdf);throw ex;}},pdf->{
             try{PdfPrintSupport.print(pdf,root.getScene().getWindow(),"Cotización "+quotation.value("folio"));}catch(Exception ex){message("No se pudo imprimir",ex.getMessage());}
             finally{try{Files.deleteIfExists(pdf);}catch(IOException ignored){pdf.toFile().deleteOnExit();}}

@@ -39,6 +39,9 @@ public class HttpReportClient implements RemoteDocuments {
     }
     public void updateCatalogEntry(String id,CatalogEntry entry) throws IOException {ensureOk(request("PUT","/api/catalog/"+encode(id),JsonSupport.GSON.toJson(entry)));}
     public void deleteCatalogEntry(String id) throws IOException {ensureOk(request("DELETE","/api/catalog/"+encode(id),null));}
+    public QuotationFolio quotationFolio(String id,boolean allocate)throws IOException {
+        return fromResponse(request(allocate?"POST":"GET","/api/quotation-folios/"+encode(id),allocate?"{}":null),QuotationFolio.class);
+    }
     public boolean health() {
         try { return request("GET", "/api/health", null).statusCode() == 200; }
         catch (Exception ex) { return false; }
